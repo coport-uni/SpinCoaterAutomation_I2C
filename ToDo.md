@@ -217,3 +217,36 @@ Verification on the UNO Q, operator present, console output kept:
 
 `firmware/pca9555_emu` stays out of this commit: it has never run on any
 board, per section 5.1.
+
+---
+
+## 7. Prove UNO Q slave mode with a self-test (2026-09-29)
+
+Spec section 8 listed "UNO Q Wire slave support unverified" as an open
+risk, and the whole stage 3 board choice hung on it. Settle it with two
+jumper wires and no extra hardware.
+
+- [x] Delete the ATmega328P draft of `firmware/pca9555_emu`. It never
+      ran on any board and its raw AVR TWI layer does not apply to the
+      UNO Q, so it was removed rather than carried
+- [x] Write `claude_test/slave_selftest`: `Wire2` (i2c3, A4/A5) opened
+      as a target at `0x21`, `Wire` (i2c2, D20/D21) driving the bus as
+      a master, jumpers A4 to D20 and A5 to D21
+- [x] **PASS on real hardware, operator present, keypad disconnected.**
+      `SCAN 1` with only `ADDR 0x21`, `WRITE ack=1`,
+      `READ got=0x5A want=0x5A ok=1`, `CB req=1 recv=1 last=0xA5`. Log
+      in `claude_test/slave_selftest/unoq_slave_verify.log`
+- [x] Establish where the third controller lives: `i2c4` maps to PF15
+      and PF14, which are D42 and D40 on the high density connector,
+      not the ordinary headers
+- [ ] Decide how to serve three addresses. Either break `i2c4` out of
+      the high density connector, or find out whether the Zephyr STM32
+      driver can register two targets on one controller using OA1 and
+      OA2, or drop `0x60` and check that the mainboard tolerates a NAK
+      there
+- [x] Register the GitHub issue via `gh issue create` (#4)
+
+This closes the largest unknown in the spec's risk table. The UNO Q can
+answer as an I2C slave at the address the emulator needs, with both
+`onReceive` and `onRequest` firing, so the board choice for stage 3 is
+settled and no Nano is required.
