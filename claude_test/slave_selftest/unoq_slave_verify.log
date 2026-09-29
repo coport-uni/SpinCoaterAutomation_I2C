@@ -1,0 +1,27 @@
+UNO Q slave self-test, operator present, keypad disconnected
+claude_test/slave_selftest, FQBN arduino:zephyr:unoq, 2026-09-29 17:45
+Jumpers: A4-D20 (SDA), A5-D21 (SCL)
+Wire2 = i2c3 as target at 0x21, Wire = i2c2 as master
+
+BOOT slave_selftest
+ADDR 0x21
+SCAN 1
+WRITE ack=1
+READ got=0x5A want=0x5A ok=1
+CB req=1 recv=1 last=0xA5
+RESULT PASS
+ADDR 0x21
+SCAN 1
+WRITE ack=1
+READ got=0x5A want=0x5A ok=1
+CB req=2 recv=2 last=0xA5
+RESULT PASS
+ADDR 0x21
+SCAN 1
+WRITE ack=1
+READ got=0x5A want=0x5A ok=1
+CB req=3 recv=3 last=0xA5
+RESULT PASS
+ADDR 0x21
+SCAN 1
+WRITE ack=1
