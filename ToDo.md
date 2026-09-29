@@ -250,3 +250,37 @@ This closes the largest unknown in the spec's risk table. The UNO Q can
 answer as an I2C slave at the address the emulator needs, with both
 `onReceive` and `onRequest` firing, so the board choice for stage 3 is
 settled and no Nano is required.
+
+---
+
+## 8. Answer two addresses from one I2C controller (2026-09-29)
+
+Section 7 proved the UNO Q can be a target, but only two of its three
+controllers reach the ordinary headers while the emulator needs three
+addresses. Rather than break i2c4 out of the high density connector or
+give up `0x60`, check whether one controller can hold two addresses.
+
+- [x] Read the driver: `struct i2c_stm32_data` carries `target_cfg`
+      **and** `target2_cfg`, mirroring the STM32 OA1 and OA2 own-address
+      registers. The second is behind `CONFIG_I2C_STM32_V2`, which the
+      generated `autoconf.h` sets to 1 for this board
+- [x] Confirm a sketch can reach the Zephyr driver API directly:
+      `<zephyr/drivers/i2c.h>` and `DEVICE_DT_GET(DT_NODELABEL(i2c3))`
+      both compile from an `.ino`
+- [x] Write `claude_test/dual_target`: `0x21` registered through the
+      Arduino `Wire` API, `0x22` registered by calling
+      `i2c_target_register()` on the same device
+- [x] **PASS on real hardware, operator present, keypad disconnected.**
+      `REGISTER2 rc=0`, `SCAN 2` with both `ADDR 0x21` and `ADDR 0x22`,
+      `READ1 got=0x5A`, `READ2 got=0xB7`, and both callback sets firing
+      independently. Log in
+      `claude_test/dual_target/unoq_dual_target_verify.log`
+- [x] Register the GitHub issue via `gh issue create` (#4)
+
+Two controllers times two addresses is four, and three are needed, so
+the address problem is settled. The high density connector stays
+unused and `0x60` is kept, which matters because the LED writes are the
+emulator's state feedback channel.
+
+Not yet verified: the test had `Wire` acting as master. In the real
+emulator both controllers are targets and the mainboard is the master.
