@@ -1,0 +1,26 @@
+UNO Q two targets on the OTHER controller, operator present, keypad disconnected
+claude_test/dual_target with TARGETS_ON_WIRE 1, FQBN arduino:zephyr:unoq, 2026-09-29 18:06
+Jumpers: A4-D20 (SDA), A5-D21 (SCL)
+Wire = i2c2 holds 0x21 (Arduino API) and 0x22 (i2c_target_register)
+Wire2 = i2c3 drives the bus as master
+
+REGISTER2 rc=0
+BOOT dual_target targets=i2c2 master=i2c3
+ADDR 0x21
+ADDR 0x22
+SCAN 2
+READ1 got=0x5A want=0x5A ok=1
+READ2 got=0xB7 want=0xB7 ok=1
+CB1 req=1 recv=1
+CB2 req=1 recv=1 last=0xA5
+RESULT PASS
+ADDR 0x21
+ADDR 0x22
+SCAN 2
+READ1 got=0x5A want=0x5A ok=1
+READ2 got=0xB7 want=0xB7 ok=1
+CB1 req=2 recv=2
+CB2 req=2 recv=2 last=0xA5
+RESULT PASS
+ADDR 0x21
+ADDR 0x22

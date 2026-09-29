@@ -18,16 +18,24 @@
  * The Arduino Wire wrapper keeps a single i2c_target_config per
  * instance, so the second address cannot go through it. It is
  * registered by calling Zephyr's i2c_target_register() directly on the
- * same device, after Wire2 has brought the controller up.
+ * same device, once the Arduino API has brought the controller up.
+ *
+ * TARGETS_ON_WIRE picks which controller carries the pair and which one
+ * drives the bus. Both roles have to be run: a pass on one controller
+ * says nothing about the other, and the emulator wants a pair on each.
+ * A controller cannot test itself, because a master does not
+ * acknowledge its own target address, so this is as far as two
+ * controllers can go. Proving three or four addresses at once needs an
+ * external master.
  *
  * Wiring, unchanged from claude_test/slave_selftest:
  *   A4 to D20   (SDA to SDA)
  *   A5 to D21   (SCL to SCL)
  *
- * Wire2 = i2c3 holds both targets, Wire = i2c2 drives the bus. The
- * keypad must stay unplugged; it answers at 0x21 and 0x22 itself.
+ * The keypad must stay unplugged; it answers at 0x21 and 0x22 itself.
  *
  * Output, one line each:
+ *   BOOT dual_target targets=<bus> master=<bus>
  *   REGISTER2 rc=<n>                   0 means the driver accepted it
  *   ADDR 0x<nn>                        every address that answered
  *   SCAN <count>
@@ -45,13 +53,35 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/i2c.h>
 
+/**
+ * Which controller carries the two targets. The other one drives the
+ * bus. Both roles are run, because a pass on one controller says
+ * nothing about the other, and the emulator needs two targets on each.
+ *
+ *   0 -- targets on Wire2 = i2c3, master is Wire  = i2c2
+ *   1 -- targets on Wire  = i2c2, master is Wire2 = i2c3
+ */
+#define TARGETS_ON_WIRE 1
+
+#if TARGETS_ON_WIRE
+#define TARGET_BUS Wire
+#define MASTER_BUS Wire2
+#define TARGET_NODE i2c2
+#define ROLE_NAME "targets=i2c2 master=i2c3"
+#else
+#define TARGET_BUS Wire2
+#define MASTER_BUS Wire
+#define TARGET_NODE i2c3
+#define ROLE_NAME "targets=i2c3 master=i2c2"
+#endif
+
 /** Serial line speed shared by every sketch in this project. */
 #define SERIAL_BAUD 115200
 
 /** Retry delay while the Monitor link is not up yet, ms. */
 #define MONITOR_RETRY_MS 500
 
-/** Wire.endTransmission() result meaning the target acknowledged. */
+/** MASTER_BUS.endTransmission() result meaning the target acknowledged. */
 #define I2C_ACK 0
 
 /** First target, registered through the Arduino Wire API. */
@@ -83,7 +113,7 @@
 
 /** The controller behind Wire2, needed to register a second target. */
 static const struct device *const i2c_target_dev =
-    DEVICE_DT_GET(DT_NODELABEL(i2c3));
+    DEVICE_DT_GET(DT_NODELABEL(TARGET_NODE));
 
 /** Counters for the Arduino-registered target. */
 static volatile uint32_t cb1_request = 0;
@@ -103,7 +133,7 @@ static int register2_rc = -1;
  * @brief Arduino target callback, the master is reading from us.
  */
 static void on_request(void) {
-    Wire2.write((uint8_t)TARGET1_REPLY);
+    TARGET_BUS.write((uint8_t)TARGET1_REPLY);
     cb1_request++;
 }
 
@@ -114,8 +144,8 @@ static void on_request(void) {
 static void on_receive(int len) {
     (void)len;
 
-    while (Wire2.available()) {
-        (void)Wire2.read();
+    while (TARGET_BUS.available()) {
+        (void)TARGET_BUS.read();
     }
     cb1_receive++;
 }
@@ -187,8 +217,8 @@ static int target2_stop(struct i2c_target_config *config) {
  * @return true when something acknowledged.
  */
 static bool i2c_probe(uint8_t addr) {
-    Wire.beginTransmission(addr);
-    return Wire.endTransmission() == I2C_ACK;
+    MASTER_BUS.beginTransmission(addr);
+    return MASTER_BUS.endTransmission() == I2C_ACK;
 }
 
 /**
@@ -231,12 +261,12 @@ static bool exercise_target(const char *tag, uint8_t addr, uint8_t want) {
     uint8_t got = 0;
     bool ok = false;
 
-    Wire.beginTransmission(addr);
-    Wire.write((uint8_t)MASTER_PROBE);
-    Wire.endTransmission();
+    MASTER_BUS.beginTransmission(addr);
+    MASTER_BUS.write((uint8_t)MASTER_PROBE);
+    MASTER_BUS.endTransmission();
 
-    if (Wire.requestFrom(addr, (uint8_t)READ_LEN) == READ_LEN) {
-        got = (uint8_t)Wire.read();
+    if (MASTER_BUS.requestFrom(addr, (uint8_t)READ_LEN) == READ_LEN) {
+        got = (uint8_t)MASTER_BUS.read();
         ok = (got == want);
     }
 
@@ -259,9 +289,9 @@ void setup() {
         delay(MONITOR_RETRY_MS);
     }
 
-    Wire2.onReceive(on_receive);
-    Wire2.onRequest(on_request);
-    Wire2.begin((uint8_t)TARGET1_ADDR);
+    TARGET_BUS.onReceive(on_receive);
+    TARGET_BUS.onRequest(on_request);
+    TARGET_BUS.begin((uint8_t)TARGET1_ADDR);
 
     /* Fields are assigned rather than brace-initialised, because the
      * callback struct grows extra members when
@@ -282,9 +312,10 @@ void setup() {
     Monitor.print("REGISTER2 rc=");
     Monitor.println(register2_rc);
 
-    Wire.begin();
+    MASTER_BUS.begin();
 
-    Monitor.println("BOOT dual_target");
+    Monitor.print("BOOT dual_target ");
+    Monitor.println(ROLE_NAME);
 }
 
 void loop() {

@@ -284,3 +284,31 @@ emulator's state feedback channel.
 
 Not yet verified: the test had `Wire` acting as master. In the real
 emulator both controllers are targets and the mainboard is the master.
+
+---
+
+## 9. Verify the second controller holds two targets as well (2026-09-29)
+
+Section 8 measured a pair of targets on i2c3 while i2c2 drove the bus.
+Calling that "two controllers times two addresses is four" was
+arithmetic, not a measurement: i2c2 had never been a target at all. The
+operator caught this.
+
+- [x] Add a `TARGETS_ON_WIRE` switch to `claude_test/dual_target` so
+      either controller can carry the pair while the other drives
+- [x] **PASS with `TARGETS_ON_WIRE 1`**, targets on i2c2 and i2c3 as
+      master, operator present, keypad disconnected. `REGISTER2 rc=0`,
+      `SCAN 2` with `ADDR 0x21` and `ADDR 0x22`, `READ1 got=0x5A`,
+      `READ2 got=0xB7`, both callback sets firing. Log in
+      `claude_test/dual_target/unoq_dual_target_swap_verify.log`
+- [ ] Three or four addresses answering **at once** is still unmeasured.
+      A master does not acknowledge its own target address, so with only
+      two controllers one of them must be the master and at most two
+      targets are ever observable. This needs an external master, which
+      means the level shifter and the R4 Minima, or a bus the Linux side
+      can reach
+
+Both controllers are now known to hold a pair each, so the pair can sit
+on whichever one suits the wiring. Note the emulator needs three
+addresses, not four: 0x21 and 0x22 on one controller, 0x60 on the
+other. That arrangement was already covered by section 8.
