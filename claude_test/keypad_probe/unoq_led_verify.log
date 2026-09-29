@@ -1,0 +1,18 @@
+UNO Q + keypad board 09-0128-00 at 3.3 V, operator present
+firmware/pca9532_led, FQBN arduino:zephyr:unoq, 2026-09-29 16:46
+Monitor read over adb from 127.0.0.1:7500
+
+--- boot ---
+BOOT pca9532_led
+I2C up
+READY
+OK
+OK
+--- send: LED 0 on ---
+OK
+--- send: LED 13 on ---
+OK
+--- send: ALL on ---
+ERR raw=[ALL on]
+--- send: ALL off ---
+OK

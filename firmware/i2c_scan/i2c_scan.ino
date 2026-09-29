@@ -22,11 +22,21 @@
  *   SCAN done <count>
  */
 
-#include <Arduino_RouterBridge.h>
 #include <Wire.h>
+
+#ifdef ARDUINO_ARCH_ZEPHYR
+#include <Arduino_RouterBridge.h>
+/** Stream that reaches the host PC on this board. */
+#define HOST Monitor
+#else
+#define HOST Serial
+#endif
 
 /** Serial line speed shared by every sketch in this project. */
 #define SERIAL_BAUD 115200
+
+/** Time to wait for a USB CDC host to attach before giving up, ms. */
+#define SERIAL_WAIT_MS 3000
 
 /** Interrupt line from the keypad board, active low. */
 #define PIN_KEYPAD_INT 2
@@ -43,6 +53,12 @@
 
 /** Delay between full scan passes, ms. */
 #define SCAN_PERIOD_MS 2000
+
+/** Bus clock used when only weak internal pull-ups are available. */
+#define I2C_SLOW_HZ 10000
+
+/** Settle time before sampling the idle bus levels, ms. */
+#define BUS_SETTLE_MS 5
 
 /** Retry delay while the Monitor link is not up yet, ms. */
 #define MONITOR_RETRY_MS 500
@@ -63,14 +79,22 @@ static bool i2c_probe(uint8_t addr) {
  * @param addr 7 bit slave address.
  */
 static void print_addr(uint8_t addr) {
-    Monitor.print("ADDR 0x");
+    HOST.print("ADDR 0x");
     if (addr < 0x10) {
-        Monitor.print('0');
+        HOST.print('0');
     }
-    Monitor.println(addr, HEX);
+    HOST.println(addr, HEX);
 }
 
-void setup() {
+/**
+ * @brief Bring up the link to the host PC.
+ *
+ * The UNO Q reaches the host only through the Router Bridge, and the
+ * bridge has to be up before Monitor works. Every other board just
+ * opens its USB CDC and carries on if no host is attached.
+ */
+static void host_begin(void) {
+#ifdef ARDUINO_ARCH_ZEPHYR
     Serial.begin(SERIAL_BAUD);
     Bridge.begin();
 
@@ -78,11 +102,66 @@ void setup() {
     while (!Monitor) {
         delay(MONITOR_RETRY_MS);
     }
+#else
+    unsigned long start_ms = millis();
+
+    Serial.begin(SERIAL_BAUD);
+    while (!Serial && (millis() - start_ms) < SERIAL_WAIT_MS) {
+    }
+#endif
+}
+
+/**
+ * @brief Report the idle level of the two bus lines.
+ *
+ * A healthy I2C bus idles high because of its pull-ups. A line reading
+ * low before Wire takes the pins over means the bus is unterminated or
+ * held down by a stuck device, which is the first thing to check when
+ * every transfer is answered with a NACK. The Zephyr core owns its I2C
+ * pins, so the check only runs where the pins are plain GPIO first.
+ */
+static void bus_check(void) {
+#ifndef ARDUINO_ARCH_ZEPHYR
+    pinMode(SDA, INPUT);
+    pinMode(SCL, INPUT);
+    delay(BUS_SETTLE_MS);
+
+    HOST.print("BUS sda=");
+    HOST.print(digitalRead(SDA));
+    HOST.print(" scl=");
+    HOST.println(digitalRead(SCL));
+#endif
+}
+
+void setup() {
+    host_begin();
+
+    HOST.println("BOOT i2c_scan");
+
+    bus_check();
 
     pinMode(PIN_KEYPAD_INT, INPUT_PULLUP);
+
+#ifndef ARDUINO_ARCH_ZEPHYR
+    /* Measured on 2026-09-29: the keypad board pulls SDA and INT up but
+     * not SCL, because the mainboard supplied that pull-up in the
+     * original machine. The Zephyr core biases its I2C pins up and so
+     * never saw this; the Renesas core does not. These internal
+     * pull-ups are far too weak for I2C rise times and only keep Wire
+     * from stalling on a bench setup with no resistor fitted. The real
+     * fix is 4.7 kOhm from SCL to the supply. */
+    pinMode(SDA, INPUT_PULLUP);
+    pinMode(SCL, INPUT_PULLUP);
+    delay(BUS_SETTLE_MS);
+#endif
+
     Wire.begin();
 
-    Monitor.println("BOOT i2c_scan");
+#ifndef ARDUINO_ARCH_ZEPHYR
+    /* A weak pull-up cannot meet the rise time of a 100 kHz bus, so the
+     * clock is dropped until a proper resistor is fitted. */
+    Wire.setClock(I2C_SLOW_HZ);
+#endif
 }
 
 void loop() {
@@ -96,11 +175,11 @@ void loop() {
         delay(I2C_PROBE_GAP_MS);
     }
 
-    Monitor.print("INT ");
-    Monitor.println(digitalRead(PIN_KEYPAD_INT));
+    HOST.print("INT ");
+    HOST.println(digitalRead(PIN_KEYPAD_INT));
 
-    Monitor.print("SCAN done ");
-    Monitor.println(found);
+    HOST.print("SCAN done ");
+    HOST.println(found);
 
     delay(SCAN_PERIOD_MS);
 }
