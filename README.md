@@ -188,6 +188,7 @@ claude_test/
   keypad_probe/               버튼 매핑 프로브와 실측 로그
   bus_check/                  Wire 없이 SDA·SCL·INT 레벨만 읽는 진단
   slave_selftest/             UNO Q 슬레이브 동작 자체 검증과 로그
+  dual_target/                컨트롤러 하나에 타깃 2개 등록 검증
 ```
 
 ### 펌웨어
@@ -262,7 +263,7 @@ RESULT PASS
 주소 응답, 쓰기 ACK, 요청한 바이트 반환, `onReceive`/`onRequest` 콜백 호출까지
 전부 동작한다. 로그는 `claude_test/slave_selftest/unoq_slave_verify.log`.
 
-### 남은 제약: 헤더에 나온 컨트롤러는 2개
+### 컨트롤러 배치
 
 | 컨트롤러 | Arduino 핀 | STM32 핀 | 위치 |
 | --- | --- | --- | --- |
@@ -270,20 +271,51 @@ RESULT PASS
 | `Wire2` = i2c3 | A4 SDA, A5 SCL | PC1, PC0 | 기본 헤더 |
 | `Wire1` = i2c4 | D42 SDA, D40 SCL | PF15, PF14 | 고밀도 커넥터 |
 
-에뮬레이터는 주소 3개가 필요한데 기본 헤더에는 2개뿐이다. 선택지는 세 가지다.
+기본 헤더에는 컨트롤러가 2개뿐인데 에뮬레이터는 주소 3개가 필요하다. 하지만
+**컨트롤러 하나가 주소 2개를 받을 수 있다는 것이 실측으로 확인됐다.** 따라서
+고밀도 커넥터를 뜯을 필요도, `0x60`을 포기할 필요도 없다.
 
-1. 고밀도 커넥터에서 i2c4를 뽑아 쓴다
-2. STM32 I2C는 자체 주소 레지스터를 2개(OA1, OA2) 가지므로, Zephyr 드라이버가
-   컨트롤러당 타깃 2개 등록을 지원하는지 확인한다. 되면 2개 컨트롤러로 충분하다
-3. `0x60`(LED)을 포기하고 `0x21`+`0x22`만 낸다. 메인보드가 `0x60` NAK를 견디는지
-   확인이 필요하고, LED 상태 피드백 채널을 잃는다
+### 컨트롤러당 타깃 2개 (2026-09-29 실측)
+
+STM32 I2C는 자체 주소 레지스터가 OA1·OA2 2개이고, Zephyr 드라이버도
+`struct i2c_stm32_data`에 `target_cfg`와 `target2_cfg`를 갖는다. 두 번째는
+`CONFIG_I2C_STM32_V2` 가드 안에 있는데, 이 빌드의 `autoconf.h`에서 `1`이다.
+
+Arduino `Wire`는 인스턴스당 `i2c_target_config`가 하나라 두 번째 주소를 낼 수
+없다. 대신 `Wire2.begin()`으로 컨트롤러를 올린 뒤 Zephyr의
+`i2c_target_register()`를 같은 device에 **직접** 호출하면 된다. 스케치에서
+`<zephyr/drivers/i2c.h>`와 `DEVICE_DT_GET(DT_NODELABEL(i2c3))`가 그대로 쓰인다.
+
+`claude_test/dual_target`의 결과:
+
+```text
+REGISTER2 rc=0
+ADDR 0x21
+ADDR 0x22
+SCAN 2
+READ1 got=0x5A want=0x5A ok=1
+READ2 got=0xB7 want=0xB7 ok=1
+CB1 req=1 recv=1
+CB2 req=1 recv=1 last=0xA5
+RESULT PASS
+```
+
+두 주소가 각자의 바이트를 내주고 콜백도 독립적으로 호출된다. 로그는
+`claude_test/dual_target/unoq_dual_target_verify.log`.
+
+**컨트롤러 2개 × 주소 2개 = 4 ≥ 3.** 예를 들어 `Wire`에 `0x21`·`0x22`를,
+`Wire2`에 `0x60`을 걸고 두 컨트롤러의 SDA/SCL을 묶어 시프터로 내보내면 된다.
+
+> 아직 확인 안 된 것: 위 테스트는 `Wire`가 **마스터**인 구성이었다. 실제
+> 에뮬레이터에서는 두 컨트롤러가 **모두 타깃**이고 메인보드가 마스터다. 동작에
+> 문제는 없어 보이지만 이 구성 자체는 아직 실측하지 않았다.
 
 ### 미결 사항
 
 | 항목 | 영향 |
 | --- | --- |
 | 메인보드 버스 전압 | **5 V 실측 완료.** 레벨 시프터 필수 |
-| UNO Q 3주소 동시 응답 | 슬레이브 동작은 실측 확인. 기본 헤더에 컨트롤러가 2개뿐이라 3번째 주소를 낼 방법을 정해야 함 |
+| UNO Q 3주소 동시 응답 | **해소.** 슬레이브 동작과 컨트롤러당 타깃 2개 모두 실측 확인. 헤더의 컨트롤러 2개로 주소 4개까지 가능 |
 | 메인보드 폴링 순서·주기·초기화 시퀀스 | 2단계의 목표 그 자체 |
 | 키 인식 최소 유지 시간 | 100 ms부터 50 ms 단위로 탐색 |
 | `0x22`의 LED 2개 핀 위치 | 2단계 로그로 확정 |
