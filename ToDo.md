@@ -17,7 +17,7 @@ its conventions and enforcement hooks into this repository.
       records the C++/Arduino, language, and linting overrides
 - [x] Create this `ToDo.md`
 - [x] Register the GitHub issue via `gh issue create` (#1)
-- [ ] Open the PR via `gh pr create`
+- [x] Open the PR via `gh pr create`
 
 Notes: no hardware verification applies — this change touches no sketch.
 Verification is that each hook runs and that the settings file parses.
