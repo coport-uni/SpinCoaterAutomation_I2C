@@ -1,0 +1,54 @@
+{
+    "board": "09-0128-00",
+    "vendor": "Ellenby Technologies",
+    "product": "Laurell spin coater keypad",
+    "captured": "2026-09-29",
+    "method": "firmware/pca9532_led WALK at 4000 ms per channel, one LED lit at a time, read out visually against the predicted order",
+    "note": "The mainboard lights a button LED only while that button is a legal input in the current machine state, so the LS register values double as a live list of which commands are currently accepted.",
+    "led_count_total": 18,
+    "chips": {
+        "0x60": {
+            "part": "PCA9532D",
+            "role": "16 of the 18 LEDs",
+            "ls_registers": "0x06 LS0 covers LED 0..3, 0x07 LS1 covers 4..7, 0x08 LS2 covers 8..11, 0x09 LS3 covers 12..15",
+            "field": "2 bits per LED: 00 off, 01 on, 10 PWM0, 11 PWM1",
+            "blink": "PSC0 0x02 and PWM0 0x03 drive PWM0; PSC1 0x04 and PWM1 0x05 drive PWM1. Period is (PSC + 1) / 152 seconds."
+        },
+        "0x22": {
+            "part": "PCA9555D",
+            "role": "the remaining 2 LEDs, exact pins not yet identified"
+        }
+    },
+    "leds": [
+        {"channel": 0, "name": "TAB_LEFT_PG_UP", "label": "tab< / pg up", "button_addr": "0x21", "button_reg": "0x00", "button_bit": 0, "confirmed": "direct"},
+        {"channel": 1, "name": "TAB_RIGHT_PG_DN", "label": "tab> / pg dn", "button_addr": "0x21", "button_reg": "0x00", "button_bit": 1, "confirmed": "walk"},
+        {"channel": 2, "name": "FWD", "label": "FWD", "button_addr": "0x21", "button_reg": "0x00", "button_bit": 2, "confirmed": "walk"},
+        {"channel": 3, "name": "ARROW_RIGHT", "label": "right arrow", "button_addr": "0x21", "button_reg": "0x00", "button_bit": 3, "confirmed": "walk"},
+        {"channel": 4, "name": "F2", "label": "F2", "button_addr": "0x21", "button_reg": "0x00", "button_bit": 4, "confirmed": "walk"},
+        {"channel": 5, "name": "F1", "label": "F1", "button_addr": "0x21", "button_reg": "0x00", "button_bit": 5, "confirmed": "walk"},
+        {"channel": 6, "name": "VACUUM", "label": "VACUUM", "button_addr": "0x21", "button_reg": "0x00", "button_bit": 6, "confirmed": "walk"},
+        {"channel": 7, "name": "SELECT_PROCESS", "label": "SELECT PROCESS", "button_addr": "0x21", "button_reg": "0x00", "button_bit": 7, "confirmed": "walk"},
+        {"channel": 8, "name": "ARROW_DOWN", "label": "down arrow", "button_addr": "0x21", "button_reg": "0x01", "button_bit": 0, "confirmed": "walk"},
+        {"channel": 9, "name": "REV", "label": "REV", "button_addr": "0x21", "button_reg": "0x01", "button_bit": 1, "confirmed": "walk"},
+        {"channel": 10, "name": "ARROW_LEFT", "label": "left arrow", "button_addr": "0x21", "button_reg": "0x01", "button_bit": 2, "confirmed": "walk"},
+        {"channel": 11, "name": "PAUSE", "label": "PAUSE", "button_addr": "0x21", "button_reg": "0x01", "button_bit": 3, "confirmed": "walk"},
+        {"channel": 12, "name": "STOP", "label": "STOP", "button_addr": "0x21", "button_reg": "0x01", "button_bit": 4, "confirmed": "walk"},
+        {"channel": 13, "name": "START", "label": "START", "button_addr": "0x21", "button_reg": "0x01", "button_bit": 5, "confirmed": "walk"},
+        {"channel": 14, "name": "INFO", "label": "INFO", "button_addr": "0x21", "button_reg": "0x01", "button_bit": 6, "confirmed": "walk"},
+        {"channel": 15, "name": "ARROW_UP", "label": "up arrow", "button_addr": "0x21", "button_reg": "0x01", "button_bit": 7, "confirmed": "walk"}
+    ],
+    "leds_not_on_pca9532": [
+        {"name": "EDIT_MODE", "label": "EDIT MODE", "button_addr": "0x22", "button_reg": "0x00", "button_bit": 0, "led_location": "unknown, expected on 0x22"},
+        {"name": "RUN_MODE", "label": "RUN MODE", "button_addr": "0x22", "button_reg": "0x00", "button_bit": 1, "led_location": "unknown, expected on 0x22"}
+    ],
+    "findings": [
+        "PCA9532 channel n drives the LED of the button at 0x21 bit n, counting input port 0 bits 0..7 as channels 0..7 and input port 1 bits 0..7 as channels 8..15. Button and LED share the same index.",
+        "Header X1 carries only VDD, GND, SDA, SCL and INT, so every LED must be driven over I2C. All 16 pins of 0x21 are buttons and the PCA9532 covers 16 LEDs, therefore the EDIT MODE and RUN MODE LEDs can only be on 0x22.",
+        "0x22 has 14 pins of unknown function. Two of them are those LEDs; some of the rest may be outputs of unused MAX6818 debouncer channels."
+    ],
+    "open_items": [
+        "Channel 0 was confirmed on its own. Channels 1..15 were read out in one visual pass against a predicted order, which is weaker evidence than an independent readout. A blind spot check is in progress.",
+        "The two remaining LED pins on 0x22 are not identified. Driving an unknown 0x22 pin as an output risks contention with a MAX6818 push-pull output, so this is not attempted without a decision on method.",
+        "Nothing here is confirmed twice yet, against the two reproductions the spec requires."
+    ]
+}
