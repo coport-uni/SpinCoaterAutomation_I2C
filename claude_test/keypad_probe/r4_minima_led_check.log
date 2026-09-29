@@ -1,0 +1,11 @@
+﻿UNO R4 Minima + keypad board 09-0128-00 at 5 V
+firmware/pca9532_led, COM18, 115200 bps, 2026-09-29 16:31
+Opening the port asserts DTR and resets the board, so the boot banner leads.
+Commands: ALL off / LED 0 on / ALL on / LED 0 off / LED 13 on
+ALL on is expected to answer ERR; it is refused on purpose.
+
+ERR
+ERR
+ERR
+ERR
+ERR

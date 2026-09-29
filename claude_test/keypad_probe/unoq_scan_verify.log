@@ -1,0 +1,16 @@
+UNO Q + keypad board 09-0128-00 at 3.3 V, operator present
+firmware/i2c_scan, FQBN arduino:zephyr:unoq, 2026-09-29 16:51
+Monitor read over adb from 127.0.0.1:7500
+
+BOOT i2c_scan
+ADDR 0x21
+ADDR 0x22
+ADDR 0x60
+INT 1
+SCAN done 3
+ADDR 0x21
+ADDR 0x22
+ADDR 0x60
+INT 1
+SCAN done 3
+ADDR 0x21

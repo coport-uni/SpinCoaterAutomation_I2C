@@ -7,10 +7,14 @@
  * PCA9532 only drives 16, so the two buttons whose LED never lights
  * during a full walk are the ones wired elsewhere.
  *
- * All 16 LEDs are deliberately never lit at once. The board is running
- * from the UNO Q 3.3 V rail during bench work and the series resistors
- * are most likely sized for 5 V, so the rail is spared and an "all on"
- * command is rejected on purpose.
+ * All 16 LEDs are deliberately never lit at once so the bench supply is
+ * not loaded with 16 LEDs, which is why an "all on" command is rejected
+ * on purpose.
+ *
+ * Builds for two boards. On the UNO Q the host link is the Router
+ * Bridge Monitor object, because that board's Serial does not reach the
+ * host. On the UNO R4 Minima, and on any other ordinary board, it is
+ * plain Serial over USB. HOST hides the difference.
  *
  * Commands, one per line, from the host:
  *   LED <n> on | off | pwm0 | pwm1   n is 0..15
@@ -24,14 +28,24 @@
  *   WALK <n>
  */
 
-#include <Arduino_RouterBridge.h>
 #include <Wire.h>
+
+#ifdef ARDUINO_ARCH_ZEPHYR
+#include <Arduino_RouterBridge.h>
+/** Stream that reaches the host PC on this board. */
+#define HOST Monitor
+#else
+#define HOST Serial
+#endif
 
 /** Serial line speed shared by every sketch in this project. */
 #define SERIAL_BAUD 115200
 
 /** Retry delay while the Monitor link is not up yet, ms. */
 #define MONITOR_RETRY_MS 500
+
+/** Time to wait for a USB CDC host to attach before giving up, ms. */
+#define SERIAL_WAIT_MS 3000
 
 /** Wire.endTransmission() result meaning the slave acknowledged. */
 #define I2C_ACK 0
@@ -236,20 +250,32 @@ static void service_host(void) {
     String line;
     size_t len = 0;
 
-    if (!Monitor.available()) {
+    if (!HOST.available()) {
         return;
     }
 
-    line = Monitor.readStringUntil('\n');
+    line = HOST.readStringUntil('\n');
     line.trim();
     len = line.length();
     if (len == 0 || len >= CMD_BUF_LEN) {
-        Monitor.println("ERR");
+        /* The echo names what was actually received, which is the only
+         * way to tell a dropped line from a misparsed one over USB. */
+        HOST.print("ERR len=");
+        HOST.print(len);
+        HOST.print(" raw=[");
+        HOST.print(line);
+        HOST.println(']');
         return;
     }
 
     line.toCharArray(buf, CMD_BUF_LEN);
-    Monitor.println(handle_line(buf) ? "OK" : "ERR");
+    if (handle_line(buf)) {
+        HOST.println("OK");
+    } else {
+        HOST.print("ERR raw=[");
+        HOST.print(line);
+        HOST.println(']');
+    }
 }
 
 /**
@@ -268,11 +294,19 @@ static void service_walk(void) {
     led_set(walk_index, LS_ON);
     walk_last_ms = millis();
 
-    Monitor.print("WALK ");
-    Monitor.println(walk_index);
+    HOST.print("WALK ");
+    HOST.println(walk_index);
 }
 
-void setup() {
+/**
+ * @brief Bring up the link to the host PC.
+ *
+ * The UNO Q reaches the host only through the Router Bridge, and the
+ * bridge has to be up before Monitor works. Every other board just
+ * opens its USB CDC and carries on if no host is attached.
+ */
+static void host_begin(void) {
+#ifdef ARDUINO_ARCH_ZEPHYR
     Serial.begin(SERIAL_BAUD);
     Bridge.begin();
 
@@ -280,8 +314,25 @@ void setup() {
     while (!Monitor) {
         delay(MONITOR_RETRY_MS);
     }
+#else
+    unsigned long start_ms = millis();
+
+    Serial.begin(SERIAL_BAUD);
+    while (!Serial && (millis() - start_ms) < SERIAL_WAIT_MS) {
+    }
+#endif
+}
+
+void setup() {
+    host_begin();
+
+    /* Announced before any I2C traffic. An unterminated bus can stall
+     * Wire, and knowing whether BOOT was reached separates a dead link
+     * from a stalled transfer. */
+    HOST.println("BOOT pca9532_led");
 
     Wire.begin();
+    HOST.println("I2C up");
 
     /* Known blink rates for the two PWM sources, then a clean slate. */
     pca9532_write(PCA9532_REG_PSC0, PSC0_SLOW);
@@ -290,7 +341,7 @@ void setup() {
     pca9532_write(PCA9532_REG_PWM1, PWM_HALF);
     led_all_off();
 
-    Monitor.println("BOOT pca9532_led");
+    HOST.println("READY");
 }
 
 void loop() {
