@@ -1,47 +1,92 @@
 # SpinCoaterAutomation_I2C
 
-Laurell 스핀코터의 키패드 보드(Ellenby 09-0128-00)를 I2C로 리버스 엔지니어링해서,
-최종적으로 키패드를 대신하는 PCA9555 슬레이브 에뮬레이터로 스핀코터를 자동 제어하는
-프로젝트다. 개발 사양서는 [docs/spincoater_keypad_spec.md](docs/spincoater_keypad_spec.md)에 있다.
+Reverse-engineering the keypad board of a Laurell spin coater
+(Ellenby Technologies 09-0128-00) over I2C, and then replacing that
+keypad with an emulator so the machine can be driven from a host PC.
+The specification is
+[docs/spincoater_keypad_spec.md](docs/spincoater_keypad_spec.md).
 
-## 현재 상태
+The machine is not modified. Its mainboard keeps talking to what it
+believes is the original keypad.
 
-사양서가 정의한 3단계 중 **1단계 탐색이 완료**됐다.
+```mermaid
+flowchart TB
+    subgraph ORIG["As built"]
+        direction LR
+        KP["<b>Keypad 09-0128-00</b><br/>18 buttons, 18 LEDs<br/>PCA9555 0x21 and 0x22<br/>PCA9532 0x60"]
+        MB1["<b>Spin coater mainboard</b><br/>I2C master, polls the keypad"]
+        KP <-->|"header X1<br/>SDA · SCL · INT"| MB1
+    end
 
-| 단계 | 목표 | 상태 |
-| --- | --- | --- |
-| 1. 탐색 | 주소, 버튼 비트맵, LED 맵 확보 | **완료** (2026-09-29) |
-| 2. 기록 | 메인보드 트랜잭션 로그 확보 | 착수 전 |
-| 3. 에뮬레이션 | 키 입력 주입으로 스핀코터 제어 | 착수 전 |
+    subgraph NEW["What this project builds"]
+        direction LR
+        PC["<b>Host PC</b><br/>press START,<br/>read back which keys are legal"]
+        UQ["<b>Arduino UNO Q</b><br/>slave emulator, answers<br/>0x21 · 0x22 · 0x60"]
+        LS["<b>BSS138</b><br/>3.3 V to 5 V"]
+        MB2["<b>Spin coater mainboard</b><br/>unchanged, unaware"]
+        PC -->|USB serial| UQ
+        UQ <--> LS
+        LS <-->|"5 V I2C"| MB2
+    end
 
-키패드 보드를 메인보드에서 분리해 Arduino UNO Q의 3.3 V로 단독 구동한 상태에서,
-18개 버튼과 16개 LED를 전부 실기로 매핑했다. 아직 메인보드에는 연결한 적이 없다.
+    ORIG ~~~ NEW
 
-## 하드웨어 구성
+    classDef orig fill:#eceff3,stroke:#9aa3b0,color:#11161d
+    classDef new fill:#d6e6f7,stroke:#2f6ea8,color:#11161d
+    class KP,MB1 orig
+    class PC,UQ,LS,MB2 new
+```
 
-키패드 보드는 메인보드와 5핀 헤더 X1 하나로만 연결된다. LCD는 별도 FPC로 메인보드에
-직결되어 이 저장소의 범위 밖이다.
+The keypad is the only part of the machine that has to be understood:
+it is a plain I2C peripheral behind a five-pin header, so an emulator
+that answers the same three addresses is indistinguishable from it.
 
-| 위치 | 칩 | 역할 | I2C 주소 |
+## Status
+
+Stage 1 of the three the specification defines is complete.
+
+```mermaid
+flowchart LR
+    S1["<b>1 · Explore</b><br/>addresses, button bitmap, LED map<br/><i>done 2026-09-29</i>"]
+    S2["<b>2 · Record</b><br/>log what the mainboard sends<br/><i>not started</i>"]
+    S3["<b>3 · Emulate</b><br/>inject keys, drive the coater<br/><i>not started</i>"]
+    S1 --> S2 --> S3
+
+    classDef done fill:#d8eedd,stroke:#2f7d55,color:#11161d
+    classDef todo fill:#eceff3,stroke:#9aa3b0,color:#3d4a59
+    class S1 done
+    class S2,S3 todo
+```
+
+The keypad board was detached from the mainboard and run standalone off
+the Arduino UNO Q's 3.3 V rail. All 18 buttons and all 16 PCA9532 LEDs
+were mapped on that bench. **The mainboard has never been connected.**
+
+## Hardware
+
+The keypad reaches the mainboard through one five-pin header, X1. The
+LCD is a separate FPC straight to the mainboard and is out of scope.
+
+| Position | Part | Role | I2C address |
 | --- | --- | --- | --- |
-| U4 | PCA9555D | 버튼 16개 | `0x21` |
-| U6 | PCA9555D | 버튼 2개 + LED 2개(추정) | `0x22` |
-| U5 | PCA9532D | LED 16개 | `0x60` |
-| U1~U3 | MAX6818EAP | 스위치 디바운서, 약 40 ms | 없음 |
+| U4 | PCA9555D | 16 buttons | `0x21` |
+| U6 | PCA9555D | 2 buttons, 2 LEDs (inferred) | `0x22` |
+| U5 | PCA9532D | 16 LEDs | `0x60` |
+| U1–U3 | MAX6818EAP | switch debouncers, about 40 ms | none |
 
-### 헤더 X1 핀맵
+### Header X1
 
-| 핀 | 신호 | 근거 |
+| Pin | Signal | Evidence |
 | --- | --- | --- |
-| 1 | VDD | 도통 확인 |
-| 2 | GND | 도통 확인 |
-| 3 | SDA | 도통 확인 |
-| 4 | SCL | R16 1 kΩ 직렬. 100 kHz 버스 정상 동작으로 실증 |
-| 5 | **INT** | 실측 확정. RESET 아님 |
+| 1 | VDD | continuity |
+| 2 | GND | continuity |
+| 3 | SDA | continuity |
+| 4 | SCL | R16, 1 kΩ, in series. Proven by a working 100 kHz bus |
+| 5 | **INT** | measured, confirmed. Not RESET |
 
-### 1단계 배선 (키패드 단독, 메인보드 미연결)
+### Stage 1 bench wiring, keypad standalone
 
-| UNO Q | 키패드 X1 |
+| UNO Q | Keypad X1 |
 | --- | --- |
 | 3.3V | VDD |
 | GND | GND |
@@ -49,76 +94,90 @@ Laurell 스핀코터의 키패드 보드(Ellenby 09-0128-00)를 I2C로 리버스
 | D21 (SCL) | SCL |
 | D2 | INT |
 
-> UNO Q 헤더의 절대 최대 전압은 3.6 V다. 5V 핀은 절대 쓰지 않는다.
+> The UNO Q header's absolute maximum is 3.6 V. Never use the 5V pin.
 
-## 확인된 사실
+## What the keypad turned out to be
 
-### 버튼 맵
+![Keypad 09-0128-00 with every key annotated by its I2C register bit and PCA9532 LED channel](docs/diagrams/keypad_bitmap.svg)
 
-전체는 [docs/button_map.json](docs/button_map.json)에 있다. 눌린 키는 해당 비트를 `0`으로
-떨어뜨리고, **누르고 있는 동안 계속 0을 유지**한다(레벨 방식).
+A pressed key drives its bit to `0` and **holds it there for as long as
+the key is down** — level, not edge. The full table is in
+[docs/button_map.json](docs/button_map.json) and
+[docs/led_map.json](docs/led_map.json); the panel photograph is
+[docs/ButtonLayout.jpg](docs/ButtonLayout.jpg).
 
-**`0x21` 입력 포트 0 (`0x00`)**
+![Register map: PCA9555 input register bits carry the buttons, PCA9532 LS register fields drive the matching LEDs](docs/diagrams/register_map.svg)
 
-| 비트 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 버튼 | SELECT PROCESS | VACUUM | F1 | F2 | → | FWD | pg dn | pg up |
+The single most useful finding is the index symmetry: **PCA9532 channel
+n drives the LED of the button at `0x21` bit n**, with input port 0
+bits 0–7 as channels 0–7 and input port 1 bits 0–7 as channels 8–15.
+Button and lamp share one index, so no separate lookup table is needed.
 
-**`0x21` 입력 포트 1 (`0x01`)**
+There are 18 LEDs and the PCA9532 has 16 channels. Header X1 carries
+only VDD, GND, SDA, SCL and INT, so every LED must be driven over I2C;
+all 16 pins of `0x21` are buttons; therefore **the EDIT MODE and RUN
+MODE lamps can only be on `0x22`.** Which pins exactly is a stage 2
+question, answered by watching the mainboard write.
 
-| 비트 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 버튼 | ↑ | INFO | START | STOP | PAUSE | ← | REV | ↓ |
+### The LEDs are a state feedback channel
 
-**`0x22` 입력 포트 0 (`0x00`)** — 비트 1 = RUN MODE, 비트 0 = EDIT MODE.
-나머지 14비트는 버튼 조작에 반응하지 않았고 용도 미상이다.
+This machine lights a button **only while that button is a legal input
+in the current state**. So the LS register values the mainboard writes
+to `0x60` are a live list of the commands it will currently accept. An
+emulator that logs those writes hands the host a closed loop.
 
-### LED 맵
+```mermaid
+sequenceDiagram
+    autonumber
+    participant H as Host PC
+    participant E as UNO Q emulator
+    participant M as Mainboard
+    M->>E: read 0x21 input ports
+    E-->>M: 0xFF 0xFF, nothing pressed
+    M->>E: write 0x60 LS0..LS3
+    E-->>H: LS snapshot = the legal command set
+    H->>H: wait_until_valid(START)
+    H->>E: press START
+    Note over E: 0x21 P1 bit 5 held at 0,<br/>INT pulled LOW
+    M->>E: read 0x21 input port 1
+    E-->>M: bit 5 = 0
+    Note over E: INT returns HIGH once read
+    M->>E: write 0x60 LS0..LS3
+    E-->>H: LS changed, so the key was accepted
+```
 
-전체는 [docs/led_map.json](docs/led_map.json)에 있다.
+That is why `host/keypad_client.py` should be written around
+`wait_until_valid(START)` followed by `press START`, rather than a blind
+`press START`. It buys three things: no command is sent that would be
+ignored, a key press can be confirmed by the change in the lit set, and
+waiting becomes state-based instead of a fixed delay.
 
-**PCA9532 채널 n = `0x21` 비트 n의 버튼 LED.** 입력 포트 0의 비트 0~7이 채널 0~7,
-입력 포트 1의 비트 0~7이 채널 8~15로 그대로 이어진다. 버튼과 LED가 같은 인덱스를 쓴다.
+### INT
 
-LED는 18개인데 PCA9532는 16채널이다. 헤더 X1에 VDD·GND·SDA·SCL·INT 5개뿐이라 모든
-LED는 I2C로만 제어될 수 있고, `0x21`의 16핀은 전부 버튼이므로 **EDIT MODE와 RUN MODE의
-LED는 `0x22`에 있을 수밖에 없다.** 정확한 핀은 2단계에서 메인보드의 쓰기를 관찰해 확정한다.
+Exactly as the PCA9555 datasheet describes. INT goes LOW on any input
+change and returns HIGH by itself once an input register is read.
+Holding a key down keeps INT HIGH; only the next change pulls it low
+again.
 
-### LED가 상태 피드백 채널인 점
+### Hardware faults found
 
-이 스핀코터는 **현재 상태에서 누를 수 있는 버튼만 LED를 켠다.** 따라서 메인보드가
-`0x60`에 쓰는 LS 레지스터 값은 곧 "지금 유효한 명령 목록"이다. 에뮬레이터가 이 쓰기를
-로깅하면 호스트는 다음을 할 수 있다.
+- **The VACUUM dome switch makes poor contact.** Three deliberate
+  presses produced one detection, and a 2 s press registered for only
+  488 ms. The first mapping pass missed it entirely. This does not
+  affect emulation, which never goes through the physical switch.
+- **The right arrow bounces.** One 123 ms bounce was observed despite
+  the MAX6818 debouncer.
 
-- 주입 전에 그 키가 지금 유효한지 확인 → 무시될 명령을 보내지 않음
-- 주입 후 LED 집합 변화로 키가 먹었는지 확인
-- 고정 딜레이 대신 상태 기반 대기
+## Development environment
 
-`host/keypad_client.py`는 이 점을 전제로 설계해야 한다. 블라인드 `press START`가 아니라
-`wait_until_valid(START)` 후 `press START`다.
+### What you need
 
-### INT 동작
-
-PCA9555 데이터시트 그대로다. 입력 변화 시 LOW, 입력 레지스터가 읽히면 HIGH로 자동 복귀.
-키를 계속 누르고 있어도 INT는 HIGH를 유지하고 다음 변화에서만 다시 LOW로 간다.
-
-### 하드웨어 이상
-
-- **VACUUM 돔 스위치 접촉 불량**: 의도적으로 3번 눌렀을 때 1번만 검출됐고, 2초 누름에
-  488 ms만 유지됐다. 1차 매핑에서는 아예 검출되지 않았다. 에뮬레이션에는 영향이 없다
-  (에뮬레이터가 물리 스위치를 거치지 않음)
-- **→ 키 바운스**: MAX6818 디바운서에도 불구하고 123 ms 바운스가 1회 관측됐다
-
-## 개발 환경
-
-### 필요한 것
-
-| 도구 | 비고 |
+| Tool | Note |
 | --- | --- |
-| Arduino IDE | 번들된 `arduino-cli`를 사용한다 |
-| `arduino:zephyr` 코어 1.0.0 | `adb` 32.0.0이 함께 설치된다. 별도 platform-tools 불필요 |
-| `Arduino_RouterBridge` 라이브러리 | 없으면 컴파일이 `#error`로 실패한다 |
-| `gh` CLI | 이슈 관리 |
+| Arduino IDE | its bundled `arduino-cli` is the one used here |
+| `arduino:zephyr` core 1.0.0 | installs `adb` 32.0.0 as well; no separate platform-tools |
+| `Arduino_RouterBridge` library | without it the build fails on an `#error` |
+| `gh` CLI | issue and PR management |
 
 ```sh
 CLI="/c/Program Files/Arduino IDE/resources/app/lib/backend/resources/arduino-cli.exe"
@@ -126,19 +185,28 @@ CLI="/c/Program Files/Arduino IDE/resources/app/lib/backend/resources/arduino-cl
 "$CLI" lib install Arduino_RouterBridge
 ```
 
-### UNO Q의 시리얼 구조 (중요)
+### Serial on the UNO Q, which is not obvious
 
-UNO Q에서 MCU의 `Serial`은 호스트 PC로 나오지 않는다. 구조가 이렇다.
+The MCU's `Serial` does not reach the host PC. The path is:
 
+```mermaid
+flowchart LR
+    SK["Sketch<br/>Monitor object"] --> RB["Router Bridge<br/>UART /dev/ttyHS1"]
+    RB --> AR["arduino-router<br/>127.0.0.1:7500, Linux side"]
+    AR --> SO["socat<br/>arduino-router-serial.service"]
+    SO --> GS["/dev/ttyGS0"]
+    GS -->|USB| HOST["Host COM port"]
+    AR -.->|"adb shell nc 127.0.0.1 7500<br/>the reliable route"| HOST
+
+    classDef mcu fill:#d6e6f7,stroke:#2f6ea8,color:#11161d
+    classDef linux fill:#d8eedd,stroke:#2f7d55,color:#11161d
+    classDef host fill:#f8e6c0,stroke:#a8761d,color:#11161d
+    class SK,RB mcu
+    class AR,SO,GS linux
+    class HOST host
 ```
-스케치의 Monitor 객체
-  └─> Router Bridge (UART /dev/ttyHS1)
-        └─> arduino-router (Linux 측, 127.0.0.1:7500)
-              └─> socat (arduino-router-serial.service)
-                    └─> /dev/ttyGS0  ─── USB ───  호스트 COM 포트
-```
 
-따라서 **스케치는 `Serial`이 아니라 `Monitor`로 출력해야 한다.**
+So a sketch must print to `Monitor`, **not** to `Serial`:
 
 ```c
 #include <Arduino_RouterBridge.h>
@@ -148,108 +216,115 @@ void setup() {
     Bridge.begin();
     Monitor.begin(115200);
     while (!Monitor) { delay(500); }
-    Monitor.println("hello");   // Serial.println이 아니다
+    Monitor.println("hello");   // not Serial.println
 }
 ```
 
-그리고 호스트의 `arduino-cli monitor -p COM17`로는 아무것도 읽히지 않는 경우가 있다.
-확실한 방법은 adb로 Linux 측 소켓을 직접 읽는 것이다.
+`arduino-cli monitor -p COM17` on the host sometimes reads nothing. The
+dependable route is to read the Linux-side socket over adb:
 
 ```sh
 ADB="$LOCALAPPDATA/Arduino15/packages/arduino/tools/adb/32.0.0/adb.exe"
 "$ADB" shell "nc 127.0.0.1 7500"
 ```
 
-`setup()` 출력은 부팅 직후 한 번만 나온다. 캡처를 먼저 걸고 재업로드해서 리셋시켜야
-초기 레지스터 덤프를 놓치지 않는다.
+`setup()` output appears once, right after boot. Start the capture
+first and re-upload to force a reset, or the initial register dump is
+lost.
 
-### 빌드와 업로드
+### Build and upload
 
 ```sh
 "$CLI" compile --fqbn arduino:zephyr:unoq firmware/i2c_scan
 "$CLI" upload  --fqbn arduino:zephyr:unoq -p COM17 firmware/i2c_scan
 ```
 
-포트 번호는 환경마다 다르다. `"$CLI" board list`로 확인한다.
-업로드는 Linux 측이 SWD로 STM32U585에 직접 쓰는 방식이라 부트로더 버튼 조작이 필요 없다.
+The port number differs per machine; `"$CLI" board list` reports it.
+Upload works by the Linux side writing the STM32U585 over SWD, so no
+bootloader button press is involved.
 
-## 저장소 구조
+## Repository layout
 
 ```text
 docs/
-  spincoater_keypad_spec.md   개발 사양서
-  ButtonLayout.jpg            키패드 전면 레이아웃
-  button_map.json             버튼 18개 매핑
-  led_map.json                LED 16개 매핑 + 나머지 2개 추론
+  spincoater_keypad_spec.md   the specification
+  ButtonLayout.jpg            front panel photograph
+  button_map.json             all 18 buttons
+  led_map.json                16 mapped LEDs plus the inference for the other 2
+  diagrams/                   SVG figures used by this README
 firmware/
-  i2c_scan/                   버스 주소 스캔
-  pca9532_led/                LED 제어, 매핑용 순회 기능 포함
+  i2c_scan/                   bus address scan
+  pca9532_led/                LED control, including a walk mode for mapping
 claude_test/
-  keypad_probe/               버튼 매핑 프로브와 실측 로그
-  bus_check/                  Wire 없이 SDA·SCL·INT 레벨만 읽는 진단
-  slave_selftest/             UNO Q 슬레이브 동작 자체 검증과 로그
-  dual_target/                컨트롤러 하나에 타깃 2개 등록 검증
+  keypad_probe/               button mapping probe and its bench logs
+  bus_check/                  reads SDA, SCL and INT levels without using Wire
+  slave_selftest/             proves the UNO Q works as an I2C target
+  dual_target/                proves one controller can hold two addresses
 ```
 
-### 펌웨어
+### Firmware
 
-| 스케치 | 역할 | 상태 |
+| Sketch | Role | Status |
 | --- | --- | --- |
-| `i2c_scan` | 버스 주소 스캔 | 실기 확인 완료 |
-| `pca9532_led` | LED 제어 (`LED n on/off/pwm0/pwm1`, `ALL off`, `WALK ms`, `HALT`) | 실기 확인 완료 |
-| `pca9555_poll` | 버튼 폴링 | 미작성. `claude_test/keypad_probe`가 역할을 대신하는 중 |
-| `pca9555_emu` | 슬레이브 에뮬레이터 | 미작성 |
+| `i2c_scan` | bus address scan | verified on hardware |
+| `pca9532_led` | LED control (`LED n on/off/pwm0/pwm1`, `ALL off`, `WALK ms`, `HALT`) | verified on hardware |
+| `pca9555_poll` | button polling | not written; `claude_test/keypad_probe` covers it for now |
+| `pca9555_emu` | slave emulator | not written |
 
-`pca9532_led`는 `ALL on`을 의도적으로 거부한다. 3.3 V 벤치 구동 중에 16개를 동시
-점등시키지 않기 위해서다.
+`pca9532_led` refuses `ALL on` on purpose, to avoid lighting all 16
+LEDs at once while the board is running off a 3.3 V bench supply.
 
-## 다음 단계
+## Next steps
 
-### ⚠️ 메인보드 버스는 5 V다 — 레벨 시프터 없이 연결하면 안 된다
+### ⚠️ The mainboard bus is 5 V — do not connect without a shifter
 
-2026-09-29 실측 결과 **메인보드 I2C 버스는 5 V**다. UNO Q 헤더의 절대 최대 전압은
-3.6 V이므로 **직결하는 순간 보드가 파손된다.** BSS138 계열 레벨 시프터를 반드시
-거쳐야 한다.
+Measured 2026-09-29: **the mainboard I2C bus is 5 V.** The UNO Q header
+is rated 3.6 V absolute maximum, so **a direct connection destroys the
+board.** A BSS138-class level shifter is mandatory.
 
-| 시프터 | 연결 |
+![Wiring the UNO Q to the 5 V mainboard bus through a BSS138 level shifter](docs/diagrams/level_shifter.svg)
+
+| Shifter | Connects to |
 | --- | --- |
 | LV | UNO Q 3.3V |
-| HV | 메인보드 5 V |
-| GND | 양쪽 공통 |
+| HV | mainboard 5 V |
+| GND | common to both |
 | LV1 / HV1 | D20 SDA / X1 SDA |
 | LV2 / HV2 | D21 SCL / X1 SCL |
 | LV3 / HV3 | D2 INT / X1 INT |
 
-INT도 SDA·SCL처럼 오픈드레인이라 양방향 채널에 그대로 맞는다. **메인보드 VDD는
-UNO Q에 연결하지 않는다** — 아두이노는 USB로 전원을 받는다.
+INT is open drain like SDA and SCL, so it fits a bidirectional channel
+unchanged. **Mainboard VDD does not go to the UNO Q** — the Arduino is
+powered over USB.
 
-시프터 모듈은 양쪽 레일에 풀업을 달고 있는데, 이게 부수적으로 문제 하나를 해결한다.
-키패드 보드는 SDA와 INT는 풀업하지만 **SCL은 풀업하지 않는다.** 원래 기계에서는
-메인보드가 그 풀업을 대주고 있었다. UNO Q에서 이 문제가 안 보이는 이유는 Zephyr
-pinctrl이 I2C 핀을 풀업으로 바이어스하기 때문이다. 다른 코어에서는 드러난다.
+The shifter module carries pull-ups on both rails, which incidentally
+fixes a second problem. The keypad pulls up SDA and INT but **not SCL**;
+in the original machine the mainboard supplied that pull-up. The reason
+this never showed up on the UNO Q is that Zephyr's pinctrl biases the
+I2C pins with pull-ups. On other cores it does show up.
 
-벤치 작업(키패드 단독)은 시프터가 필요 없다. 키패드를 UNO Q의 3.3 V로 직접 구동하면
-되고, 1단계 전체를 그렇게 진행했다.
+Bench work on the keypad alone needs no shifter: drive the keypad from
+the UNO Q's 3.3 V rail, which is how all of stage 1 was done.
 
-### 에뮬레이터 보드 선정
+### Choosing the emulator board
 
-사양서는 3주소 동시 응답을 위해 Nano 3개 병렬 또는 AVR TWAMR 해킹을 제안했지만,
-**Nano는 필요 없다.** UNO Q가 슬레이브로 동작한다는 것이 실측으로 확인됐다. 근거:
+The specification proposed three parallel Nanos or an AVR TWAMR hack to
+answer three addresses at once. **Neither is needed.** The UNO Q was
+measured working as a slave. The evidence:
 
-- `CONFIG_I2C_TARGET=y`로 슬레이브 모드가 빌드에 켜져 있다
-- `Wire.begin(uint8_t address)`가 Zephyr `i2c_target_register()`를 호출하고
-  `onReceive` / `onRequest` 콜백이 구현돼 있다
-- I2C 컨트롤러가 3개 노출된다: `i2cs = <&i2c2>, <&i2c4>, <&i2c3>` → `Wire`, `Wire1`, `Wire2`
-- `i2c3`은 PC0 = A5, PC1 = A4로 헤더에 나와 있다
+- `CONFIG_I2C_TARGET=y` — target mode is built in
+- `Wire.begin(uint8_t address)` calls Zephyr's `i2c_target_register()`,
+  and the `onReceive` / `onRequest` callbacks are implemented
+- three I2C controllers are exposed: `i2cs = <&i2c2>, <&i2c4>, <&i2c3>`
+  → `Wire`, `Wire1`, `Wire2`
+- `i2c3` is on the headers as PC0 = A5, PC1 = A4
 
-컨트롤러마다 주소를 하나씩 맡기고 SDA/SCL을 병렬로 묶으면 `0x21`, `0x22`, `0x60`을
-한 보드에서 낼 수 있다.
+### Slave operation, measured 2026-09-29
 
-### 슬레이브 동작은 실측으로 확인됐다 (2026-09-29)
-
-`claude_test/slave_selftest`가 점퍼 2개(A4↔D20, A5↔D21)만으로 이를 증명한다.
-`Wire2`(i2c3)를 `0x21` 타깃으로 열고 `Wire`(i2c2)가 마스터로 접근한다.
-키패드는 분리한 상태로 실행한다 — 키패드도 `0x21`이라 주소가 겹친다.
+`claude_test/slave_selftest` proves it with two jumpers, A4↔D20 and
+A5↔D21. `Wire2` (i2c3) opens as a `0x21` target and `Wire` (i2c2)
+drives the bus as master. **The keypad must be disconnected** for this
+— it is also `0x21`.
 
 ```text
 ADDR 0x21
@@ -260,33 +335,24 @@ CB req=1 recv=1 last=0xA5
 RESULT PASS
 ```
 
-주소 응답, 쓰기 ACK, 요청한 바이트 반환, `onReceive`/`onRequest` 콜백 호출까지
-전부 동작한다. 로그는 `claude_test/slave_selftest/unoq_slave_verify.log`.
+Address acknowledgement, write ACK, returning a requested byte, and
+both callbacks all work. Log:
+`claude_test/slave_selftest/unoq_slave_verify.log`.
 
-### 컨트롤러 배치
+### Two targets per controller, measured 2026-09-29
 
-| 컨트롤러 | Arduino 핀 | STM32 핀 | 위치 |
-| --- | --- | --- | --- |
-| `Wire` = i2c2 | D20 SDA, D21 SCL | PB11, PB10 | 기본 헤더 |
-| `Wire2` = i2c3 | A4 SDA, A5 SCL | PC1, PC0 | 기본 헤더 |
-| `Wire1` = i2c4 | D42 SDA, D40 SCL | PF15, PF14 | 고밀도 커넥터 |
+The STM32 I2C has two own-address registers, OA1 and OA2, and the
+Zephyr driver carries `target_cfg` **and** `target2_cfg` in
+`struct i2c_stm32_data`. The second sits behind `CONFIG_I2C_STM32_V2`,
+which this build's `autoconf.h` sets to `1`.
 
-기본 헤더에는 컨트롤러가 2개뿐인데 에뮬레이터는 주소 3개가 필요하다. 하지만
-**컨트롤러 하나가 주소 2개를 받을 수 있다는 것이 실측으로 확인됐다.** 따라서
-고밀도 커넥터를 뜯을 필요도, `0x60`을 포기할 필요도 없다.
+Arduino's `Wire` holds one `i2c_target_config` per instance, so it
+cannot offer a second address by itself. Bringing the controller up with
+`Wire2.begin()` and then calling Zephyr's `i2c_target_register()`
+**directly** on the same device does work; `<zephyr/drivers/i2c.h>` and
+`DEVICE_DT_GET(DT_NODELABEL(i2c3))` compile from an `.ino` unchanged.
 
-### 컨트롤러당 타깃 2개 (2026-09-29 실측)
-
-STM32 I2C는 자체 주소 레지스터가 OA1·OA2 2개이고, Zephyr 드라이버도
-`struct i2c_stm32_data`에 `target_cfg`와 `target2_cfg`를 갖는다. 두 번째는
-`CONFIG_I2C_STM32_V2` 가드 안에 있는데, 이 빌드의 `autoconf.h`에서 `1`이다.
-
-Arduino `Wire`는 인스턴스당 `i2c_target_config`가 하나라 두 번째 주소를 낼 수
-없다. 대신 `Wire2.begin()`으로 컨트롤러를 올린 뒤 Zephyr의
-`i2c_target_register()`를 같은 device에 **직접** 호출하면 된다. 스케치에서
-`<zephyr/drivers/i2c.h>`와 `DEVICE_DT_GET(DT_NODELABEL(i2c3))`가 그대로 쓰인다.
-
-`claude_test/dual_target`의 결과:
+`claude_test/dual_target` reports:
 
 ```text
 REGISTER2 rc=0
@@ -300,33 +366,73 @@ CB2 req=1 recv=1 last=0xA5
 RESULT PASS
 ```
 
-두 주소가 각자의 바이트를 내주고 콜백도 독립적으로 호출된다. 로그는
-`claude_test/dual_target/unoq_dual_target_verify.log`.
+Both addresses return their own byte and both callback sets fire
+independently. Logs:
+`claude_test/dual_target/unoq_dual_target_verify.log` and
+`unoq_dual_target_swap_verify.log`, the latter with the roles swapped so
+that each of the two controllers is known to hold a pair.
 
-**컨트롤러 2개 × 주소 2개 = 4 ≥ 3.** 예를 들어 `Wire`에 `0x21`·`0x22`를,
-`Wire2`에 `0x60`을 걸고 두 컨트롤러의 SDA/SCL을 묶어 시프터로 내보내면 된다.
+### Controller allocation
 
-> 아직 확인 안 된 것: 위 테스트는 `Wire`가 **마스터**인 구성이었다. 실제
-> 에뮬레이터에서는 두 컨트롤러가 **모두 타깃**이고 메인보드가 마스터다. 동작에
-> 문제는 없어 보이지만 이 구성 자체는 아직 실측하지 않았다.
+```mermaid
+flowchart LR
+    subgraph UNOQ["Arduino UNO Q · STM32U585"]
+        direction LR
+        W["<b>Wire = i2c2</b><br/>D20 SDA · D21 SCL<br/>PB11 · PB10"]
+        W2["<b>Wire2 = i2c3</b><br/>A4 SDA · A5 SCL<br/>PC1 · PC0"]
+        W1["<b>Wire1 = i2c4</b><br/>D42 · D40<br/>high density connector<br/><i>not needed</i>"]
+        A1["<b>0x21</b> buttons<br/>own address 1"]
+        A2["<b>0x22</b> buttons + 2 LEDs<br/>own address 2"]
+        A3["<b>0x60</b> LED dimmer<br/>own address 1"]
+        W --> A1
+        W --> A2
+        W2 --> A3
+    end
+    BUS["shared SDA / SCL<br/>out through the level shifter"]
+    A1 --- BUS
+    A2 --- BUS
+    A3 --- BUS
 
-### 미결 사항
+    classDef ctrl fill:#d6e6f7,stroke:#2f6ea8,color:#11161d
+    classDef addr fill:#d8eedd,stroke:#2f7d55,color:#11161d
+    classDef unused fill:#eceff3,stroke:#9aa3b0,color:#3d4a59
+    classDef bus fill:#f8e6c0,stroke:#a8761d,color:#11161d
+    class W,W2 ctrl
+    class W1 unused
+    class A1,A2,A3 addr
+    class BUS bus
+```
 
-| 항목 | 영향 |
+Two controllers on the ordinary headers, two addresses each, is four,
+and only three are needed. The high density connector stays untouched
+and `0x60` is kept — which matters, because the LED writes are the
+emulator's state feedback channel.
+
+> Still unmeasured: the tests above had `Wire` acting as **master**. In
+> the real emulator both controllers are targets and the mainboard is
+> the master. Nothing suggests a problem, but that arrangement itself
+> has not been run. A master does not acknowledge its own target
+> address, so measuring it needs an external master — which means the
+> level shifter and a second board.
+
+### Open items
+
+| Item | Impact |
 | --- | --- |
-| 메인보드 버스 전압 | **5 V 실측 완료.** 레벨 시프터 필수 |
-| UNO Q 3주소 동시 응답 | **해소.** 슬레이브 동작과 컨트롤러당 타깃 2개 모두 실측 확인. 헤더의 컨트롤러 2개로 주소 4개까지 가능 |
-| 메인보드 폴링 순서·주기·초기화 시퀀스 | 2단계의 목표 그 자체 |
-| 키 인식 최소 유지 시간 | 100 ms부터 50 ms 단위로 탐색 |
-| `0x22`의 LED 2개 핀 위치 | 2단계 로그로 확정 |
-| X1에 꽂을 물리 커넥터 | 미준비 |
+| Mainboard bus voltage | **measured: 5 V.** Level shifter mandatory |
+| Three addresses at once from one UNO Q | **resolved.** Target mode and two targets per controller both measured; two header controllers reach four addresses |
+| Mainboard polling order, period, init sequence | this is what stage 2 is for |
+| Minimum key hold time the mainboard accepts | to be searched from 100 ms in 50 ms steps |
+| Which `0x22` pins carry the two LEDs | to be settled by the stage 2 log |
+| A physical connector for X1 | not sourced |
 
-버튼 맵과 LED 맵은 각 1회 확인 상태다. 사양서 §7은 2회 이상 재현을 요구하므로
-검증 패스가 남아 있다.
+The button map and the LED map are each confirmed once. §7 of the
+specification asks for two independent reproductions, so a verification
+pass is still outstanding.
 
-## 참고 자료
+## References
 
-- [NXP PCA9555 데이터시트](https://www.nxp.com/docs/en/data-sheet/PCA9555.pdf)
-- [NXP PCA9532 데이터시트](https://www.nxp.com/docs/en/data-sheet/PCA9532.pdf)
-- [Arduino UNO Q Power Specifications](https://docs.arduino.cc/tutorials/uno-q/power-specification/)
+- [NXP PCA9555 datasheet](https://www.nxp.com/docs/en/data-sheet/PCA9555.pdf)
+- [NXP PCA9532 datasheet](https://www.nxp.com/docs/en/data-sheet/PCA9532.pdf)
+- [Arduino UNO Q power specifications](https://docs.arduino.cc/tutorials/uno-q/power-specification/)
 - [coport-uni/CommonClaude](https://github.com/coport-uni/CommonClaude)

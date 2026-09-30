@@ -39,7 +39,7 @@ map all 18 buttons and all LEDs, per `docs/spincoater_keypad_spec.md`
 - [x] Write `firmware/pca9532_led` and map all 16 PCA9532 LED channels
 - [x] Record `docs/button_map.json` and `docs/led_map.json`
 - [x] Write `README.md`
-- [ ] Register the GitHub issue via `gh issue create`
+- [x] Register the GitHub issue via `gh issue create` (#10)
 - [ ] Second reproduction pass; the spec §7 asks for two, every entry is
       currently confirmed once
 
@@ -67,7 +67,7 @@ exist on other boards.
       re-enumerated as a serial port. Waiting on the operator to press
       RESET
 - [ ] Confirm the LEDs light on real hardware and keep the console output
-- [ ] Register the GitHub issue via `gh issue create`
+- [x] Register the GitHub issue via `gh issue create` (#10)
 - [ ] Commit — held back by §5.1, the change is not verified yet
 
 Wiring changes from the UNO Q: keypad VDD moves from 3.3 V to 5 V, SDA
@@ -94,7 +94,7 @@ keypad board so the host can inject key presses, per spec §1 stage 3.
       other two, or use several boards
 - [ ] Measure where the I2C pull-ups live — keypad board or mainboard.
       The current code assumes the mainboard supplies them
-- [ ] Register the GitHub issue via `gh issue create`
+- [x] Register the GitHub issue via `gh issue create` (#10)
 
 Safety: injecting keys can spin the chuck. First tests use a harmless
 key such as INFO, with nothing mounted and the lid closed.
@@ -312,3 +312,50 @@ Both controllers are now known to hold a pair each, so the pair can sit
 on whichever one suits the wiring. Note the emulator needs three
 addresses, not four: 0x21 and 0x22 on one controller, 0x60 on the
 other. That arrangement was already covered by section 8.
+
+---
+
+## 10. Rewrite the README in English and draw the concept (2026-09-30)
+
+The operator asked for `README.md` in English and for the project's
+concept to be carried by pictures, not prose alone. Project `CLAUDE.md`
+§2 currently overrides the shared ruleset to keep Korean prose
+documentation, which contradicts CommonClaude §2 Language —
+"documentation files (including README) ... must be written in
+**English**". The operator's decision is to drop that override and align
+with the shared rule, so every document in this repository becomes
+English.
+
+- [x] Replace project `CLAUDE.md` §2 with an English-documentation rule
+      that matches CommonClaude §2, and record the diagram convention
+      (Mermaid inline, hand-written SVG under `docs/diagrams/`)
+- [x] Add the SVG diagrams: keypad button and bit layout, level shifter
+      wiring to the mainboard. Three files, the register and bit
+      layout having earned a figure of its own:
+      `docs/diagrams/keypad_bitmap.svg`, `register_map.svg`,
+      `level_shifter.svg`
+- [x] Rewrite `README.md` in English with Mermaid diagrams — the
+      three-stage roadmap, the signal path before and after the
+      emulator, and the UNO Q controller-to-address allocation —
+      referencing the SVGs
+- [x] Translate the remaining Korean prose documents so the new rule
+      holds repository-wide: `docs/spincoater_keypad_spec.md` and
+      `claude_test/README.md`
+- [x] Verify every factual claim in the new README against
+      `docs/button_map.json`, `docs/led_map.json`, the `claude_test`
+      logs, and the sketches. A checker walked both SVGs against the
+      two JSON maps: 74 assertions, all passing, no Korean left in any
+      tracked file
+- [x] Confirm the Mermaid blocks parse and the SVGs render. All five
+      Mermaid blocks parse and render under mermaid 11; the three SVGs
+      are well-formed and were inspected as PNG renders
+- [x] Register the GitHub issue via `gh issue create` (#10)
+- [x] Work on branch `docs/english-readme-with-diagrams`
+- [ ] Open the PR via `gh pr create`
+
+No sketch changes, so §5.1 requires no hardware run for this entry. The
+applicable row is documentation: every claim checked against the file,
+log, or measurement it describes. The submodule at
+`external/CommonClaude` was empty in this working copy and was restored
+with `git submodule update --init --recursive`; the recorded commit is
+unchanged, so nothing is staged for it.

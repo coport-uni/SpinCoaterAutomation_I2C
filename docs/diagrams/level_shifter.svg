@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 560" width="920" height="560" role="img" aria-label="Wiring the UNO Q to the 5 volt mainboard bus through a BSS138 level shifter, with the mainboard supply kept off the UNO Q">
+  <title>Level shifter wiring to the 5 V mainboard bus</title>
+  <rect x="1" y="1" width="918" height="558" rx="14" fill="#ffffff" stroke="#ccd2da" stroke-width="1.5"/>
+
+  <g font-family="Segoe UI, Helvetica Neue, Arial, sans-serif">
+    <text x="32" y="40" font-size="20" font-weight="700" fill="#11161d">Reaching the machine &#8212; the mainboard bus is 5 V</text>
+    <text x="32" y="64" font-size="12.5" fill="#4b5665">Measured 2026-09-29. Stage 1 ran the keypad alone off 3.3 V and needed none of this. Stage 2 onward does.</text>
+
+    <rect x="32" y="96" width="248" height="290" rx="12" fill="#e3f0fb" stroke="#2f6ea8" stroke-width="1.8"/>
+    <text x="156" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#11161d">Arduino UNO Q</text>
+    <text x="156" y="146" text-anchor="middle" font-size="10.5" fill="#4b5665">3.3 V logic, powered over USB</text>
+
+    <rect x="336" y="96" width="248" height="290" rx="12" fill="#f3f1e7" stroke="#8a7a3d" stroke-width="1.8"/>
+    <text x="460" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#11161d">BSS138 level shifter</text>
+    <text x="460" y="146" text-anchor="middle" font-size="10.5" fill="#4b5665">bidirectional, open drain</text>
+
+    <rect x="640" y="96" width="248" height="290" rx="12" fill="#fbe9e7" stroke="#c0392b" stroke-width="1.8"/>
+    <text x="764" y="126" text-anchor="middle" font-size="14" font-weight="700" fill="#11161d">Keypad header X1</text>
+    <text x="764" y="146" text-anchor="middle" font-size="10.5" fill="#4b5665">in the machine, 5 V bus</text>
+
+    <g font-family="Consolas, monospace" font-size="11.5" fill="#11161d">
+      <text x="266" y="190" text-anchor="end">3V3</text>
+      <text x="266" y="226" text-anchor="end">GND</text>
+      <text x="266" y="262" text-anchor="end">D20  SDA</text>
+      <text x="266" y="298" text-anchor="end">D21  SCL</text>
+      <text x="266" y="334" text-anchor="end">D2   INT</text>
+
+      <text x="350" y="190">LV</text>
+      <text x="350" y="226">GND</text>
+      <text x="350" y="262">LV1</text>
+      <text x="350" y="298">LV2</text>
+      <text x="350" y="334">LV3</text>
+
+      <text x="570" y="190" text-anchor="end">HV</text>
+      <text x="570" y="226" text-anchor="end">GND</text>
+      <text x="570" y="262" text-anchor="end">HV1</text>
+      <text x="570" y="298" text-anchor="end">HV2</text>
+      <text x="570" y="334" text-anchor="end">HV3</text>
+
+      <text x="654" y="190">1  VDD   5 V</text>
+      <text x="654" y="226">2  GND</text>
+      <text x="654" y="262">3  SDA</text>
+      <text x="654" y="298">4  SCL</text>
+      <text x="654" y="334">5  INT</text>
+    </g>
+    <text x="654" y="352" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="9.5" fill="#6b7787">pin 4 has R16, 1 k&#8486;, in series</text>
+
+    <g stroke-width="2.2" fill="none">
+      <line x1="280" y1="186" x2="336" y2="186" stroke="#2f6ea8"/>
+      <line x1="584" y1="186" x2="640" y2="186" stroke="#c0392b"/>
+      <line x1="280" y1="222" x2="336" y2="222" stroke="#4b5665"/>
+      <line x1="378" y1="222" x2="542" y2="222" stroke="#4b5665"/>
+      <line x1="584" y1="222" x2="640" y2="222" stroke="#4b5665"/>
+      <line x1="280" y1="258" x2="336" y2="258" stroke="#2f6ea8"/>
+      <line x1="584" y1="258" x2="640" y2="258" stroke="#c0392b"/>
+      <line x1="280" y1="294" x2="336" y2="294" stroke="#2f6ea8"/>
+      <line x1="584" y1="294" x2="640" y2="294" stroke="#c0392b"/>
+      <line x1="280" y1="330" x2="336" y2="330" stroke="#2f6ea8"/>
+      <line x1="584" y1="330" x2="640" y2="330" stroke="#c0392b"/>
+    </g>
+
+    <g stroke="#8a7a3d" stroke-width="1.8" fill="none">
+      <line x1="378" y1="258" x2="436" y2="258"/>
+      <line x1="484" y1="258" x2="542" y2="258"/>
+      <line x1="378" y1="294" x2="436" y2="294"/>
+      <line x1="484" y1="294" x2="542" y2="294"/>
+      <line x1="378" y1="330" x2="436" y2="330"/>
+      <line x1="484" y1="330" x2="542" y2="330"/>
+    </g>
+    <g fill="#ffffff" stroke="#8a7a3d" stroke-width="1.6">
+      <rect x="436" y="248" width="48" height="20" rx="4"/>
+      <rect x="436" y="284" width="48" height="20" rx="4"/>
+      <rect x="436" y="320" width="48" height="20" rx="4"/>
+    </g>
+    <g font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="8.5" fill="#6b5a24" text-anchor="middle">
+      <text x="460" y="262">FET</text>
+      <text x="460" y="298">FET</text>
+      <text x="460" y="334">FET</text>
+    </g>
+
+    <line x1="378" y1="186" x2="542" y2="186" stroke="#b0b7c0" stroke-width="1.6" stroke-dasharray="5 4"/>
+    <g stroke="#c0392b" stroke-width="2.4">
+      <line x1="452" y1="178" x2="468" y2="194"/>
+      <line x1="468" y1="178" x2="452" y2="194"/>
+    </g>
+    <text x="460" y="170" text-anchor="middle" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="9.5" font-weight="700" fill="#a93226">rails stay separate</text>
+
+    <g font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="9.5" fill="#6b7787" text-anchor="middle">
+      <text x="308" y="180">3.3 V</text>
+      <text x="612" y="180">5 V</text>
+      <text x="460" y="213">GND common</text>
+    </g>
+
+    <rect x="32" y="404" width="856" height="112" rx="10" fill="#fdecea" stroke="#c0392b" stroke-width="1.6"/>
+    <text x="52" y="430" font-size="12.5" font-weight="700" fill="#a93226">Before anything touches the machine</text>
+    <g font-size="11" fill="#2b3440">
+      <text x="52" y="452">The UNO Q header is rated 3.6 V absolute maximum. Wiring it straight to the 5 V mainboard bus destroys the board.</text>
+      <text x="52" y="472">Mainboard VDD feeds the shifter HV rail only; it never reaches the UNO Q, which is USB powered. GND is the one rail all three share.</text>
+      <text x="52" y="492">The keypad pulls up SDA and INT but not SCL - the mainboard supplied that pull-up. The shifter module's rail pull-ups cover the gap.</text>
+    </g>
+
+    <text x="32" y="542" font-size="11" fill="#4b5665">INT is open drain like SDA and SCL, so it rides an ordinary bidirectional channel. Bench work on the keypad alone needs no shifter at all.</text>
+  </g>
+</svg>

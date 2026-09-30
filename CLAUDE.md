@@ -10,10 +10,12 @@ imported here in full:
 
 @external/CommonClaude/CLAUDE.md
 
-Read that file first. The sections below are **project-level overrides**;
-per §1 Rule Priority, they win wherever they disagree with the shared
-ruleset. Everything not mentioned below applies unchanged — in
-particular §3 Debug File Management, §4 Task Management, §5.1 the
+Read that file first. The sections below are **project-level overrides**
+and, per §1 Rule Priority, win wherever they disagree with the shared
+ruleset — §2 excepted, which restates the shared language rule and
+adds the diagram convention this project follows. Everything not
+mentioned below applies unchanged — in particular §3 Debug File
+Management, §4 Task Management, §5.1 the
 Verification Gate, §9/§10 Learned Patterns, §11 Commit Messages,
 §12 Branching, §14 Versioning, and §15 Pull Requests.
 
@@ -56,18 +58,47 @@ created, it is for CI-quality tests only, and probes stay in
 
 ---
 
-## 2. Override — language
+## 2. Documentation language and diagrams
 
-The shared §2 Language rule requires English everywhere. **In this
-repository, Korean is the language of prose documentation**: `README.md`,
-`docs/`, and `claude_test/README.md` are already written in Korean and
-stay that way. Match the language of the file being edited.
+The shared §2 Language rule requires **English** for every document,
+`README.md` included. This repository now follows it without exception.
 
-English remains required for:
+| Artifact | Language |
+|---|---|
+| `README.md`, `docs/`, `claude_test/README.md`, `ToDo.md` | English |
+| Code comments, identifiers, Doxygen blocks | English |
+| Commit messages, PR titles and bodies | English |
+| GitHub issue titles and bodies | English |
 
-- code comments and identifiers,
-- commit messages and PR titles/bodies,
-- GitHub issue titles and bodies.
+An earlier version of this file carved out Korean for prose
+documentation. That override is **withdrawn**. It contradicted the
+shared ruleset, and the findings here — a bit map for an undocumented
+2005 keypad board with no public schematic — are worth reading to anyone
+who meets the same hardware. Korean belongs in the conversation with the
+operator, not in the files.
+
+When editing a file that is still Korean, translate the part being
+touched. Never leave Korean and English interleaved in one section.
+
+### Diagrams
+
+Prose is the fallback, not the default. Anything involving a bus, a pin
+map, a register layout, or a sequence gets drawn.
+
+- **Mermaid fenced block, inline in the Markdown** — flows, roadmaps,
+  block diagrams, address and signal routing. GitHub renders these
+  natively, so the picture stays inside the document it explains.
+- **Hand-written SVG under `docs/diagrams/`** — anything where position
+  carries meaning: panel layout, bit fields, wiring. Referenced from the
+  Markdown with `![alt](path)`.
+
+Both are text, so both diff and both review. Do not commit a rasterised
+screenshot of something that could have been either. Photographs of the
+real hardware are a different thing and belong in `docs/`.
+
+An SVG must stay legible on a light **and** a dark background, because
+GitHub serves README images on either. Set every fill and stroke
+explicitly; never rely on a default colour.
 
 ---
 
