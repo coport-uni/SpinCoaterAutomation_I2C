@@ -126,7 +126,7 @@ C-specific rules into the project overrides in `CLAUDE.md`.
       so no file needs copying
 - [x] Register the GitHub issue via `gh issue create` (#2)
 - [x] Cross-reference the follow-up on the harness issue (#1)
-- [ ] Open the PR via `gh pr create`
+- [x] Open the PR via `gh pr create` (#11)
 
 Scope: the operator asked for the C-language content only, so the C
 branch's §13 `.gitignore` template and its §16 pre-commit
@@ -351,7 +351,7 @@ English.
       are well-formed and were inspected as PNG renders
 - [x] Register the GitHub issue via `gh issue create` (#10)
 - [x] Work on branch `docs/english-readme-with-diagrams`
-- [ ] Open the PR via `gh pr create`
+- [x] Open the PR via `gh pr create` (#11)
 
 No sketch changes, so §5.1 requires no hardware run for this entry. The
 applicable row is documentation: every claim checked against the file,
