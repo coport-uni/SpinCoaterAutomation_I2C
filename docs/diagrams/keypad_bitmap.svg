@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 904 620" width="904" height="620" role="img" aria-label="Laurell spin coater keypad 09-0128-00: every key with the I2C register bit that reports it and the PCA9532 channel that lights it">
+  <title>Keypad 09-0128-00 - key to I2C bit to LED channel</title>
+  <rect x="1" y="1" width="902" height="618" rx="14" fill="#ffffff" stroke="#ccd2da" stroke-width="1.5"/>
+  <text x="32" y="40" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="20" font-weight="700" fill="#11161d">Laurell spin coater keypad 09-0128-00</text>
+  <text x="32" y="64" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="12.5" fill="#4b5665">Every key, the I2C bit that reports it, and the PCA9532 channel that lights it. Mapped on the bench, 2026-09-29.</text>
+
+  <rect x="32" y="88" width="840" height="406" rx="16" fill="#eceff3" stroke="#39424f" stroke-width="1.6"/>
+  <text x="862" y="108" text-anchor="end" font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="10.5" fill="#6b7787">front panel, LCD window omitted</text>
+
+  <g font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" text-anchor="middle">
+
+    <g>
+      <rect x="53" y="120" width="132" height="56" rx="10" fill="#d6e6f7" stroke="#2f6ea8" stroke-width="1.6"/>
+      <text x="119" y="146" font-size="11" font-weight="700" fill="#11161d">SELECT PROCESS</text>
+      <text x="119" y="164" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P0.7 &#183; LED 7</text>
+      <circle cx="170" cy="133" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="53" y="186" width="132" height="56" rx="10" fill="#f8e6c0" stroke="#a8761d" stroke-width="1.6"/>
+      <text x="119" y="212" font-size="13" font-weight="700" fill="#11161d">RUN MODE</text>
+      <text x="119" y="230" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x22 P0.1 &#183; LED ?</text>
+      <circle cx="170" cy="199" r="5" fill="#ffffff" stroke="#a8761d" stroke-width="1.2" stroke-dasharray="2 2"/>
+    </g>
+    <g>
+      <rect x="53" y="252" width="132" height="56" rx="10" fill="#f8e6c0" stroke="#a8761d" stroke-width="1.6"/>
+      <text x="119" y="278" font-size="13" font-weight="700" fill="#11161d">EDIT MODE</text>
+      <text x="119" y="296" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x22 P0.0 &#183; LED ?</text>
+      <circle cx="170" cy="265" r="5" fill="#ffffff" stroke="#a8761d" stroke-width="1.2" stroke-dasharray="2 2"/>
+    </g>
+    <g>
+      <rect x="53" y="318" width="132" height="56" rx="10" fill="#d8eedd" stroke="#2f7d55" stroke-width="1.6"/>
+      <text x="119" y="344" font-size="14" font-weight="700" fill="#11161d">INFO</text>
+      <text x="119" y="362" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P1.6 &#183; LED 14</text>
+      <circle cx="170" cy="331" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+
+    <g>
+      <rect x="381" y="120" width="132" height="56" rx="26" fill="#d6e6f7" stroke="#2f6ea8" stroke-width="1.6"/>
+      <text x="447" y="146" font-size="14" font-weight="700" fill="#11161d">VACUUM</text>
+      <text x="447" y="164" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P0.6 &#183; LED 6</text>
+      <circle cx="498" cy="133" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="596" y="120" width="118" height="56" rx="10" fill="#d6e6f7" stroke="#2f6ea8" stroke-width="1.6"/>
+      <text x="655" y="146" font-size="16" font-weight="700" fill="#11161d">F1</text>
+      <text x="655" y="164" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P0.5 &#183; LED 5</text>
+      <circle cx="699" cy="133" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="726" y="120" width="118" height="56" rx="10" fill="#d6e6f7" stroke="#2f6ea8" stroke-width="1.6"/>
+      <text x="785" y="146" font-size="16" font-weight="700" fill="#11161d">F2</text>
+      <text x="785" y="164" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P0.4 &#183; LED 4</text>
+      <circle cx="829" cy="133" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+
+    <g>
+      <rect x="388" y="210" width="118" height="56" rx="10" fill="#d8eedd" stroke="#2f7d55" stroke-width="1.6"/>
+      <text x="447" y="236" font-size="15" font-weight="700" fill="#11161d">&#8593; UP</text>
+      <text x="447" y="254" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P1.7 &#183; LED 15</text>
+      <circle cx="491" cy="223" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="262" y="292" width="118" height="56" rx="10" fill="#d8eedd" stroke="#2f7d55" stroke-width="1.6"/>
+      <text x="321" y="318" font-size="14" font-weight="700" fill="#11161d">&#8592; LEFT</text>
+      <text x="321" y="336" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P1.2 &#183; LED 10</text>
+      <circle cx="365" cy="305" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="388" y="292" width="118" height="56" rx="10" fill="#d8eedd" stroke="#2f7d55" stroke-width="1.6"/>
+      <text x="447" y="318" font-size="14" font-weight="700" fill="#11161d">&#8595; DOWN</text>
+      <text x="447" y="336" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P1.0 &#183; LED 8</text>
+      <circle cx="491" cy="305" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="514" y="292" width="118" height="56" rx="10" fill="#d6e6f7" stroke="#2f6ea8" stroke-width="1.6"/>
+      <text x="573" y="318" font-size="14" font-weight="700" fill="#11161d">&#8594; RIGHT</text>
+      <text x="573" y="336" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P0.3 &#183; LED 3</text>
+      <circle cx="617" cy="305" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+
+    <g>
+      <rect x="700" y="210" width="144" height="56" rx="10" fill="#d6e6f7" stroke="#2f6ea8" stroke-width="1.6"/>
+      <text x="772" y="236" font-size="12" font-weight="700" fill="#11161d">tab &lt;  /  pg up</text>
+      <text x="772" y="254" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P0.0 &#183; LED 0</text>
+      <circle cx="829" cy="223" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="700" y="292" width="144" height="56" rx="10" fill="#d6e6f7" stroke="#2f6ea8" stroke-width="1.6"/>
+      <text x="772" y="318" font-size="12" font-weight="700" fill="#11161d">tab &gt;  /  pg dn</text>
+      <text x="772" y="336" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P0.1 &#183; LED 1</text>
+      <circle cx="829" cy="305" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+
+    <g>
+      <rect x="53" y="396" width="150" height="70" rx="10" fill="#d8eedd" stroke="#2f7d55" stroke-width="1.6"/>
+      <text x="128" y="428" font-size="16" font-weight="700" fill="#11161d">START</text>
+      <text x="128" y="448" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P1.5 &#183; LED 13</text>
+      <circle cx="188" cy="411" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="215" y="396" width="150" height="70" rx="10" fill="#d8eedd" stroke="#2f7d55" stroke-width="1.6"/>
+      <text x="290" y="428" font-size="16" font-weight="700" fill="#11161d">STOP</text>
+      <text x="290" y="448" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P1.4 &#183; LED 12</text>
+      <circle cx="350" cy="411" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="377" y="396" width="150" height="70" rx="10" fill="#d8eedd" stroke="#2f7d55" stroke-width="1.6"/>
+      <text x="452" y="428" font-size="16" font-weight="700" fill="#11161d">PAUSE</text>
+      <text x="452" y="448" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P1.3 &#183; LED 11</text>
+      <circle cx="512" cy="411" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="539" y="396" width="150" height="70" rx="10" fill="#d8eedd" stroke="#2f7d55" stroke-width="1.6"/>
+      <text x="614" y="428" font-size="16" font-weight="700" fill="#11161d">REV</text>
+      <text x="614" y="448" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P1.1 &#183; LED 9</text>
+      <circle cx="674" cy="411" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+    <g>
+      <rect x="701" y="396" width="150" height="70" rx="10" fill="#d6e6f7" stroke="#2f6ea8" stroke-width="1.6"/>
+      <text x="776" y="428" font-size="16" font-weight="700" fill="#11161d">FWD</text>
+      <text x="776" y="448" font-size="10" font-family="Consolas, monospace" fill="#3d4a59">0x21 P0.2 &#183; LED 2</text>
+      <circle cx="836" cy="411" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    </g>
+
+  </g>
+
+  <g font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="11.5" fill="#2b3440">
+    <rect x="32" y="512" width="16" height="16" rx="3" fill="#d6e6f7" stroke="#2f6ea8" stroke-width="1.4"/>
+    <text x="56" y="525">0x21 input port 0 (reg 0x00)</text>
+    <rect x="248" y="512" width="16" height="16" rx="3" fill="#d8eedd" stroke="#2f7d55" stroke-width="1.4"/>
+    <text x="272" y="525">0x21 input port 1 (reg 0x01)</text>
+    <rect x="464" y="512" width="16" height="16" rx="3" fill="#f8e6c0" stroke="#a8761d" stroke-width="1.4"/>
+    <text x="488" y="525">0x22 input port 0 (reg 0x00)</text>
+    <circle cx="712" cy="520" r="5" fill="#f0a500" stroke="#9c6b00" stroke-width="1"/>
+    <text x="724" y="525">LED on PCA9532</text>
+    <circle cx="846" cy="520" r="5" fill="#ffffff" stroke="#a8761d" stroke-width="1.2" stroke-dasharray="2 2"/>
+    <text x="858" y="525">?</text>
+  </g>
+
+  <g font-family="Segoe UI, Helvetica Neue, Arial, sans-serif" font-size="11" fill="#4b5665">
+    <text x="32" y="556">Notation 0x21 P0.7 = chip 0x21, input port 0, bit 7. A pressed key drives its bit to 0 and holds it there for as long as the key is down.</text>
+    <text x="32" y="576">PCA9532 channel n drives the LED of the button at 0x21 bit n. Port 0 bits 0-7 are channels 0-7; port 1 bits 0-7 are channels 8-15.</text>
+    <text x="32" y="596">RUN MODE and EDIT MODE sit on 0x22; their LEDs are not on the PCA9532 and their pins are still unidentified (dashed indicator).</text>
+  </g>
+</svg>

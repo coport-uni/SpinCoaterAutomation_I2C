@@ -1,47 +1,56 @@
 # claude_test
 
-일회성 실험 스케치와 실측 로그 목록. 정식 산출물은 `firmware/`에 둔다.
+One-off probe sketches and the bench logs they produced. Deliverable
+firmware lives in `firmware/`.
 
-## 스케치
+## Sketches
 
-| 스케치 | 목적 | 상태 |
+| Sketch | Purpose | Status |
 | --- | --- | --- |
-| `keypad_probe` | 키패드 보드 1차 하드웨어 응답 확인. PCA9555 설정 레지스터 0x06, 0x07 읽기, 입력 레지스터 0x00, 0x01 50 ms 폴링, D2 INT 에지 보고. 2차에서 PCA9532 입력 레지스터까지 48비트로 확장 | 2026-09-29 UNO Q에서 실행 완료. I2C 슬레이브 3개 응답, 키 입력 레벨 유지, D2 INT 에지 모두 확인 |
-| `bus_check` | `Wire`를 전혀 쓰지 않고 SDA·SCL·INT의 유휴 레벨만 읽는다. 하이임피던스와 내부 풀업 두 조건으로 샘플링해 **외부 풀업 있음 / 플로팅 / 누군가 로우로 잡고 있음**을 구분한다 | 2026-09-29 R4 Minima에서 실행 완료. `SCL hiz=0 pup=1`로 SCL 풀업 부재를 특정 (이슈 #3) |
-| `slave_selftest` | UNO Q가 I2C 슬레이브로 동작하는지 **보드 하나로** 증명한다. `Wire2`(i2c3, A4/A5)를 `0x21` 타깃으로 열고 `Wire`(i2c2, D20/D21)가 마스터로 스캔·쓰기·읽기를 건다. 점퍼 2개(A4↔D20, A5↔D21)만 필요하며 **키패드는 반드시 분리**해야 한다 — 키패드도 `0x21`이라 주소가 겹친다 | 2026-09-29 **PASS**. 주소 응답·쓰기 ACK·바이트 반환·양쪽 콜백 전부 확인 |
-| `dual_target` | 컨트롤러 **하나가 주소 2개**를 받을 수 있는지 시험한다. STM32 I2C는 자체 주소 레지스터가 OA1/OA2 2개고 Zephyr 드라이버도 `target_cfg`/`target2_cfg`를 갖는다(`CONFIG_I2C_STM32_V2=1`). Arduino `Wire`는 인스턴스당 타깃 1개라, 두 번째 주소는 `i2c_target_register()`를 직접 호출해 건다. `TARGETS_ON_WIRE`로 어느 컨트롤러가 타깃 쌍을 맡을지 고른다 — 마스터는 자기 타깃 주소에 ACK하지 않으므로 한 컨트롤러가 자신을 검증할 수 없어 양쪽 역할을 각각 돌려야 한다 | 2026-09-29 **양쪽 역할 모두 PASS**. `TARGETS_ON_WIRE 0`(타깃=i2c3)과 `1`(타깃=i2c2) 각각 검증 |
+| `keypad_probe` | First hardware response check on the keypad board. Reads the PCA9555 configuration registers `0x06` and `0x07`, polls the input registers `0x00` and `0x01` every 50 ms, and reports D2 INT edges. The second pass widened the watch to 48 bits by including the PCA9532 input registers | Run on the UNO Q, 2026-09-29. Three I2C slaves answered, key presses held their level, and every D2 INT edge appeared |
+| `bus_check` | Reads the idle levels of SDA, SCL and INT **without touching `Wire` at all**. Sampling under two conditions, high impedance and internal pull-up, separates **external pull-up present / floating / something holding it low** | Run on the R4 Minima, 2026-09-29. `SCL hiz=0 pup=1` pinned down the missing SCL pull-up (issue #3) |
+| `slave_selftest` | Proves the UNO Q works as an I2C target **using one board**. `Wire2` (i2c3, A4/A5) opens as a `0x21` target while `Wire` (i2c2, D20/D21) scans, writes and reads as master. Needs two jumpers, A4↔D20 and A5↔D21, and **the keypad must be disconnected** — it is also `0x21` | 2026-09-29 **PASS**. Address acknowledgement, write ACK, byte return, and both callbacks all confirmed |
+| `dual_target` | Tests whether **one controller can hold two addresses**. The STM32 I2C has two own-address registers, OA1 and OA2, and the Zephyr driver carries `target_cfg` / `target2_cfg` (`CONFIG_I2C_STM32_V2=1`). Arduino's `Wire` allows one target per instance, so the second address is registered by calling `i2c_target_register()` directly. `TARGETS_ON_WIRE` selects which controller carries the pair — a master does not acknowledge its own target address, so a controller cannot verify itself and each role has to be run in turn | 2026-09-29 **PASS in both roles**. Verified with `TARGETS_ON_WIRE 0` (targets on i2c3) and with `1` (targets on i2c2) |
 
-## 실측 로그
+## Bench logs
 
-| 로그 | 내용 |
+| Log | Contents |
 | --- | --- |
-| `keypad_probe/button_map_pass1.log` | 1차 버튼 매핑. 18개를 순서대로 눌러 17개 검출, CHG 36줄. VACUUM만 미검출이며 13번과 14번 사이 간격이 6,527 ms로 한 사이클 통째로 비어 그 자리가 VACUUM임을 특정. `docs/button_map.json`의 근거 |
-| `keypad_probe/button_map_pass2_vacuum.log` | 2차. PCA9532 입력 레지스터까지 감시 범위를 넓힌 뒤 VACUUM을 3회 눌러 1회 검출. `0x21` 레지스터 `0x00` 비트 6으로 확정. 돔 스위치 접촉 불량도 이 로그에 남아 있음 |
-| `keypad_probe/r4_minima_led_check.log` | UNO R4 Minima + 키패드 5 V 구동에서 `firmware/pca9532_led` 실행 시도. **실패 기록**이며 성공 증거가 아니다. 명령은 온전히 도착했으나 I2C 쓰기가 전부 NACK |
+| `keypad_probe/unoq_scan_verify.log` | Bus scan on the UNO Q with the keypad attached |
+| `keypad_probe/unoq_led_verify.log` | PCA9532 LED control confirmed on the UNO Q |
+| `keypad_probe/button_map_pass1.log` | First button mapping pass. All 18 keys pressed in order, 17 detected, 36 `CHG` lines. Only VACUUM went undetected, and the 6,527 ms gap between key 13 and key 14 — a whole cycle missing — identified that slot as VACUUM. The basis for `docs/button_map.json` |
+| `keypad_probe/button_map_pass2_vacuum.log` | Second pass. With the watch widened to the PCA9532 input registers, VACUUM was pressed three times and detected once, fixing it at `0x21` register `0x00` bit 6. The dome switch's poor contact is recorded in this log too |
+| `keypad_probe/r4_minima_led_check.log` | An attempt to run `firmware/pca9532_led` with the keypad on 5 V from an UNO R4 Minima. **This is a record of failure, not evidence of success.** The commands arrived intact but every I2C write was NACKed |
+| `slave_selftest/unoq_slave_verify.log` | UNO Q target mode, PASS |
+| `dual_target/unoq_dual_target_verify.log` | Two targets on i2c3, i2c2 as master, PASS |
+| `dual_target/unoq_dual_target_swap_verify.log` | Roles swapped: two targets on i2c2, i2c3 as master, PASS |
 
-## 시리얼 읽는 법이 보드마다 다르다
+## Reading the serial output differs per board
 
 ### UNO Q
 
-MCU의 `Serial`은 호스트로 직접 나오지 않는다. Router Bridge의 `Monitor` 객체가
-Linux 측 `127.0.0.1:7500`으로 나가고, `arduino-router-serial.service`가 이를
-`/dev/ttyGS0`으로 중계한다. 호스트 COM 포트에서 안 읽히면 adb로 소켓을 직접 읽는다.
+The MCU's `Serial` does not reach the host directly. The Router Bridge
+`Monitor` object goes out to `127.0.0.1:7500` on the Linux side, and
+`arduino-router-serial.service` relays that to `/dev/ttyGS0`. When the
+host COM port reads nothing, read the socket directly over adb.
 
 ```sh
 ADB="$LOCALAPPDATA/Arduino15/packages/arduino/tools/adb/32.0.0/adb.exe"
 "$ADB" shell "nc 127.0.0.1 7500"
 ```
 
-`setup()` 출력은 부팅 직후 한 번만 나오므로, 캡처를 먼저 걸고 재업로드해서
-리셋시켜야 초기 레지스터 덤프를 놓치지 않는다.
+`setup()` output appears once, right after boot, so start the capture
+first and re-upload to force a reset or the initial register dump is
+lost.
 
 ### UNO R4 Minima
 
-보통의 USB CDC라 COM 포트로 바로 읽힌다. 단 **포트를 여는 순간 DTR이 보드를
-리셋**시킨다. 열자마자 명령을 보내면 부팅 배너에 삼켜져 전부 `ERR`가 되므로,
-포트를 연 뒤 2.5초 정도 기다렸다가 보낸다.
+An ordinary USB CDC, readable straight from the COM port. But
+**opening the port asserts DTR and resets the board.** A command sent
+immediately is swallowed by the boot banner and comes back as `ERR`, so
+wait about 2.5 s after opening before sending anything.
 
-## 빌드와 업로드
+## Build and upload
 
 ```sh
 CLI="/c/Program Files/Arduino IDE/resources/app/lib/backend/resources/arduino-cli.exe"
@@ -55,7 +64,7 @@ CLI="/c/Program Files/Arduino IDE/resources/app/lib/backend/resources/arduino-cl
 "$CLI" upload  --fqbn arduino:renesas_uno:minima -p COM18 claude_test/bus_check
 ```
 
-R4가 업로드 후 DFU 모드에 머물러 COM 포트로 안 돌아오는 일이 잦다. 그때는
-`-p 1-9`처럼 DFU 포트를 지정해 다시 올린다. `Wire`를 쓰는 스케치에서 특히
-자주 발생하는데, 버스가 비정상일 때 Renesas `Wire`가 기동 중에 멈추는 것으로
-보인다.
+The R4 often stays in DFU mode after an upload instead of coming back
+as a COM port. Re-upload with the DFU port named explicitly, such as
+`-p 1-9`. It happens most with sketches that use `Wire`, which suggests
+the Renesas `Wire` stalls during start-up when the bus is abnormal.
