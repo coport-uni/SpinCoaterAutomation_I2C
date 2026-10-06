@@ -689,3 +689,30 @@ Tasks:
 - [x] Compare with `lamp_trace/trace_diag.log`: do `LS2` and `LS0` now
       arrive with their data bytes?
 - [x] Restore the jumpers and `pca9555_emu_gui` afterwards
+
+---
+
+## 19. Bring the documents up to date and open the PR (2026-10-06)
+
+The operator asked for today's work to go to GitHub and into the
+documents. CLAUDE.md §5.1 forbids merging a PR whose Testing records a
+failure, and #18 is open. The operator first chose to open the PR
+only, then explicitly ordered it merged and the merged branches deleted.
+The merge is recorded in the PR as an operator-approved exception to
+§5.1, with the failing paths listed as NOT VERIFIED.
+
+Several documents say the mainboard never writes `LS0` or `LS2`. The
+2026-10-06 traces show it does; the emulator loses the data bytes.
+
+Tasks:
+
+- [x] Correct the LS0/LS2 statement in `README.md`, `docs/led_map.json`,
+      `firmware/pca9555_emu_gui/README.md` and the panel's docstring
+- [x] Add the 2026-10-06 findings to `README.md` and the spec: the
+      descending LS3..LS0 writes, the even-command-byte losses, the
+      timer release, the single-controller test
+- [x] Check every new claim against the logs it cites
+- [ ] Push `feat/full-panel-emulator` and open the PR into `main` with
+      an honest Testing section
+- [ ] Merge the PR at the operator's order and delete the merged
+      branches, local and remote
