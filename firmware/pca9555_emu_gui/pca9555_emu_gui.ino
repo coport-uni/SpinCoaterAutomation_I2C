@@ -57,7 +57,7 @@
  * PAUSE STOP START INFO UP EDIT RUN
  *
  * Output lines:
- *   BOOT pca9555_emu
+ *   BOOT pca9555_emu_gui
  *   REG addr=0x<nn> rc=<n>              one per registered address
  *   READY
  *   RX 0x<nn> reg=0x<nn> data=0x<nn> ms=<n>    mainboard wrote
@@ -1088,7 +1088,7 @@ void setup() {
         delay(MONITOR_RETRY_MS);
     }
 
-    Monitor.println("BOOT pca9555_emu");
+    Monitor.println("BOOT pca9555_emu_gui");
 
     reset_state();
     int_apply();

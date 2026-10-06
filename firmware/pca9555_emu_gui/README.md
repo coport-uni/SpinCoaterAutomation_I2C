@@ -1,10 +1,15 @@
 # pca9555_emu_gui — the whole panel, gated by the lamps
 
-> **NOT VERIFIED.** Neither file here has been compiled or run on the
-> bench. Per CLAUDE.md §5.1 this folder must not be merged until a run
-> with the operator present has produced output to paste into the PR.
-> `../pca9555_emu/` is the verified pair; reach for that one when the
-> point is a known-good emulator.
+> **Run on the bench 2026-10-06**, operator present. What was actually
+> exercised: the three addresses registering, the mainboard booting
+> against it, `KEYS`, `HELP`, both rejection paths, and the two arrow
+> keys moving the cursor on camera.
+>
+> **Not exercised: the other 16 keys.** `EDIT` and `RUN` matter most of
+> those, because they are the only ones on expander `0x22` and so the
+> only ones that use the second device in `press_dev`. The 14 remaining
+> `0x21` keys share their whole code path with the arrows. Nothing that
+> can turn the chuck has been pressed.
 
 Same structure as its sibling, with two differences:
 
@@ -12,7 +17,7 @@ Same structure as its sibling, with two differences:
 | --- | --- | --- |
 | Keys the sketch accepts | `UP` and `DOWN` only | all 18 |
 | Keys the panel lets you click | `UP` and `DOWN` only | **whichever lamps are lit** |
-| Verified | yes, 2026-10-06 | no |
+| Verified | yes, 2026-10-06 | arrows and the command surface only |
 
 ## The idea
 

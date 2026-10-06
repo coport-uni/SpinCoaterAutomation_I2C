@@ -1,0 +1,56 @@
+14:00:21 POLL ms=180632 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:22 POLL ms=181634 rx21=0 tx21=38 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:23 POLL ms=182639 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:24 POLL ms=183643 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:25 POLL ms=184643 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:26 POLL ms=185647 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:27 POLL ms=186649 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:28 POLL ms=187650 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:29 POLL ms=188656 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:30 STATE a0=0xFF a1=0xFF b0=0xFF b1=0xFF cfgA0=0xFF cfgA1=0xFF int=1 press=none
+14:00:30 LEDS ..............*. ms=189698
+14:00:30 OK
+14:00:30 POLL ms=189727 rx21=0 tx21=44 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:31 KEY DOWN down ms=190023
+14:00:31 OK
+14:00:31 TX 0x21 reg=0x01 data=0xFE ms=190008
+14:00:31 KEY DOWN up ms=190152
+14:00:31 TX 0x21 reg=0x01 data=0xFF ms=190157
+14:00:31 LEDS ..............** ms=190459
+14:00:31 RX 0x60 reg=0x09 data=0x50 ms=190354
+14:00:31 RX 0x60 reg=0x07 data=0x00 ms=190360
+14:00:31 RX 0x22 reg=0x03 data=0xFC ms=190369
+14:00:31 LEDS ..............** ms=190813
+14:00:31 POLL ms=190824 rx21=0 tx21=48 rx22=1 tx22=0 rx60=2 tx60=0 drop=0
+14:00:32 KEY DOWN down ms=191907
+14:00:32 OK
+14:00:32 TX 0x21 reg=0x01 data=0xFE ms=191927
+14:00:33 POLL ms=192012 rx21=0 tx21=54 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:33 KEY DOWN up ms=192138
+14:00:33 TX 0x21 reg=0x01 data=0xFF ms=192127
+14:00:34 POLL ms=193015 rx21=0 tx21=42 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:34 KEY UP down ms=193891
+14:00:34 OK
+14:00:34 TX 0x21 reg=0x01 data=0x7F ms=193925
+14:00:35 KEY UP up ms=194025
+14:00:35 TX 0x21 reg=0x01 data=0xFF ms=194025
+14:00:35 POLL ms=194113 rx21=0 tx21=48 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:36 POLL ms=195115 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:36 KEY UP down ms=195894
+14:00:36 OK
+14:00:36 TX 0x21 reg=0x01 data=0x7F ms=195926
+14:00:37 KEY UP up ms=196031
+14:00:37 TX 0x21 reg=0x01 data=0xFF ms=196023
+14:00:37 POLL ms=196117 rx21=0 tx21=44 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:37 LEDS ..............*. ms=196325
+14:00:37 RX 0x60 reg=0x09 data=0x10 ms=196219
+14:00:37 RX 0x60 reg=0x07 data=0x00 ms=196225
+14:00:37 RX 0x22 reg=0x03 data=0xFC ms=196228
+14:00:37 LEDS ..............*. ms=196677
+14:00:38 POLL ms=197120 rx21=0 tx21=142 rx22=1 tx22=0 rx60=2 tx60=0 drop=0
+14:00:38 STATE a0=0xFF a1=0xFF b0=0xFF b1=0xFF cfgA0=0xFF cfgA1=0xFF int=1 press=none
+14:00:39 LEDS ..............*. ms=198067
+14:00:39 OK
+14:00:39 POLL ms=198123 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:40 POLL ms=199123 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+14:00:41 POLL ms=200126 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
