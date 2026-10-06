@@ -728,7 +728,56 @@ Tasks:
       descending LS3..LS0 writes, the even-command-byte losses, the
       timer release, the single-controller test
 - [x] Check every new claim against the logs it cites
-- [ ] Push `feat/full-panel-emulator` and open the PR into `main` with
+- [x] Push `feat/full-panel-emulator` and open the PR into `main` with
       an honest Testing section
-- [ ] Merge the PR at the operator's order and delete the merged
+- [x] Merge the PR at the operator's order and delete the merged
       branches, local and remote
+
+---
+
+## 20. Sweep the target's TIMINGR against the lost transfers (2026-10-06)
+
+Part of GitHub issue #18, tracked in #21. Hypothesis: when bit 0 of the
+command byte is 0, the emulator's ACK for that byte lands too late for
+the mainboard, which reads a NACK and ends the transfer. The ACK delay
+after SCL falls is the `SDADEL` field of the STM32 `TIMINGR` register.
+The driver computes it for 400 kHz (`clock-frequency` in the devicetree,
+no `timings` preset), about 375 ns at PCLK1 = 160 MHz. The operator
+chose to test this by changing `TIMINGR`, not with a logic analyser.
+
+The mainboard's 50 ms poll gives a live metric with no key pressed:
+each poll writes `0x21` `[00]` and `0x22` `[00]`, and the read that
+should follow is lost today. Changing `TIMINGR` at run time and
+counting lost against delivered follow-ups tests a setting in seconds,
+without rebooting the mainboard.
+
+A second hypothesis is recorded alongside it: the mainboard may release
+SDA as it drops SCL after bit 0, so when bit 0 is 0 the STM32 sees SDA
+rise while SCL is still high, i.e. a STOP, and never ACKs. `TIMINGR`
+cannot fix that. The two are told apart by timing: a spurious STOP
+arrives within about a microsecond of the command byte, a STOP after a
+NACK at least one bit period later. The probe timestamps both with the
+cycle counter.
+
+Tasks:
+
+- [x] Write `claude_test/ack_timing/ack_timing.ino`: the emulator's
+      three addresses (0x21, 0x22 on i2c2; 0x60 on i2c3), no key ever
+      pressed, inputs read `0xFF`
+  - [x] Per address and command byte, count follow-ups delivered (data
+        byte, or a read next) against lost
+  - [x] Cycle-counter time from command byte to STOP, min/max, for
+        pointer-only writes, split by command-byte parity
+  - [x] `REGS`, `TIMING <bus> <hex>`, `SDADEL <bus> <n>`, `STAT`,
+        `CLEAR`; `TIMINGR` is written only with the peripheral off
+        (`PE` = 0) and the bus idle
+- [x] Write `claude_test/ack_timing/sweep.py`: for each setting,
+      `CLEAR`, wait, `STAT`, and save the table
+- [x] Compile; `ruff` on the script
+- [x] Bench, operator present, spin coater on, no key pressed: record
+      the default `TIMINGR`, then sweep `SDADEL` 0..15 on i2c2 and
+      at least one larger prescaler
+- [ ] If a setting stops the losses, power-cycle the spin coater with it
+      and check `LS2`/`LS0` arrive and the lamps match the real keypad
+- [ ] Record the result in #18, `claude_test/README.md` and the top
+      README; restore `pca9555_emu_gui` afterwards
