@@ -728,7 +728,114 @@ Tasks:
       descending LS3..LS0 writes, the even-command-byte losses, the
       timer release, the single-controller test
 - [x] Check every new claim against the logs it cites
-- [ ] Push `feat/full-panel-emulator` and open the PR into `main` with
+- [x] Push `feat/full-panel-emulator` and open the PR into `main` with
       an honest Testing section
-- [ ] Merge the PR at the operator's order and delete the merged
+- [x] Merge the PR at the operator's order and delete the merged
       branches, local and remote
+
+---
+
+## 20. Sweep the target's TIMINGR against the lost transfers (2026-10-06)
+
+Part of GitHub issue #18, tracked in #21. Hypothesis: when bit 0 of the
+command byte is 0, the emulator's ACK for that byte lands too late for
+the mainboard, which reads a NACK and ends the transfer. The ACK delay
+after SCL falls is the `SDADEL` field of the STM32 `TIMINGR` register.
+The driver computes it for 400 kHz (`clock-frequency` in the devicetree,
+no `timings` preset), about 375 ns at PCLK1 = 160 MHz. The operator
+chose to test this by changing `TIMINGR`, not with a logic analyser.
+
+The mainboard's 50 ms poll gives a live metric with no key pressed:
+each poll writes `0x21` `[00]` and `0x22` `[00]`, and the read that
+should follow is lost today. Changing `TIMINGR` at run time and
+counting lost against delivered follow-ups tests a setting in seconds,
+without rebooting the mainboard.
+
+A second hypothesis is recorded alongside it: the mainboard may release
+SDA as it drops SCL after bit 0, so when bit 0 is 0 the STM32 sees SDA
+rise while SCL is still high, i.e. a STOP, and never ACKs. `TIMINGR`
+cannot fix that. The two are told apart by timing: a spurious STOP
+arrives within about a microsecond of the command byte, a STOP after a
+NACK at least one bit period later. The probe timestamps both with the
+cycle counter.
+
+Tasks:
+
+- [x] Write `claude_test/ack_timing/ack_timing.ino`: the emulator's
+      three addresses (0x21, 0x22 on i2c2; 0x60 on i2c3), no key ever
+      pressed, inputs read `0xFF`
+  - [x] Per address and command byte, count follow-ups delivered (data
+        byte, or a read next) against lost
+  - [x] Cycle-counter time from command byte to STOP, min/max, for
+        pointer-only writes, split by command-byte parity
+  - [x] `REGS`, `TIMING <bus> <hex>`, `SDADEL <bus> <n>`, `STAT`,
+        `CLEAR`; `TIMINGR` is written only with the peripheral off
+        (`PE` = 0) and the bus idle
+- [x] Write `claude_test/ack_timing/sweep.py`: for each setting,
+      `CLEAR`, wait, `STAT`, and save the table
+- [x] Compile; `ruff` on the script
+- [x] Bench, operator present, spin coater on, no key pressed: record
+      the default `TIMINGR`, then sweep `SDADEL` 0..15 on i2c2 and
+      at least one larger prescaler
+- [x] If a setting stops the losses, power-cycle the spin coater with it
+      and check `LS2`/`LS0` arrive and the lamps match the real keypad (done with mk2, see §21)
+- [ ] Record the result in #18, `claude_test/README.md` and the top
+      README; restore `pca9555_emu_gui` afterwards
+
+---
+
+## 21. pca9555_emu_gui_mk2: the panel emulator without lost transfers (2026-10-06)
+
+Part of GitHub issues #18 and #21, tracked in #22. The operator asked
+for a new folder, `firmware/pca9555_emu_gui_mk2`, holding a version of
+the panel emulator that loses nothing. `pca9555_emu_gui` stays as it is,
+the verified record of the first full-panel build.
+
+The fix is the one `claude_test/ack_timing` proved on the bench: set
+the `SDADEL` field of `TIMINGR` to 4 on both controllers (i2c2 and
+i2c3) after the targets are registered, because `i2c_target_register`
+recomputes `TIMINGR` from the 400 kHz devicetree setting. With `PRESC`
+4 at 160 MHz that is 125 ns, in the middle of the 0..7 band that lost
+nothing, and far from the failing 250..410 ns window.
+
+Tasks:
+
+- [x] Copy `pca9555_emu_gui.ino` to
+      `firmware/pca9555_emu_gui_mk2/pca9555_emu_gui_mk2.ino`
+  - [x] After registration, write `SDADEL` 4 with the peripheral off
+        and the bus idle, on both controllers
+  - [x] Do not guess: if `PRESC` is not the expected 4, print
+        a `WARN` line instead of applying a value tuned for 160 MHz
+  - [x] Print `TIMING` lines at boot and in `STATE`; check once a
+        second that the value is still in place and re-apply it with a
+        logged line if the driver has rewritten it
+  - [x] Update the header comment and the boot banner
+- [x] Copy `keypad_gui.py` and the README into the folder and update
+      what the fix changes (the lamp gate is no longer known to be
+      incomplete)
+- [x] Compile; `ruff` on the panel
+- [x] Bench, operator present, no key pressed at first: boot, check
+      `TIMING` lines, `LEDS` shows the down arrow and tab/pg dn lit on
+      Select Process like `KakaoTalk_20261006_142258731.jpg`
+- [x] With the operator's go-ahead, press `DOWN`, `UP` and one port-0
+      key (`PGDN`), and watch the LCD on the C920
+- [x] Update the READMEs, #18 and #21
+
+---
+
+## 22. Write the fix into the documents and merge into main (2026-10-06)
+
+The operator asked for the work since #15 and the fix of the lost
+transfers to go into the documents and into `main`. Tracked in #23.
+`claude_test/ack_timing` (#21) and `pca9555_emu_gui_mk2` (#22) were
+both run on the bench with the operator present; the keys not yet
+pressed are listed in the PR as NOT VERIFIED, and the operator ordered
+the merge.
+
+Tasks:
+
+- [x] Top README: the fault section is fixed by mk2; heading and links
+- [x] `firmware/pca9555_emu_gui/README.md`: point to mk2
+- [x] `docs/led_map.json`: the note and the open item
+- [ ] PR into `main` with the bench output, then merge
+- [ ] Delete the merged branches, local and remote
