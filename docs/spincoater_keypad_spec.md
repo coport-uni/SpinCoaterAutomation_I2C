@@ -321,6 +321,7 @@ without its real output attached to the PR.
 | Minimum key hold time the mainboard accepts | unconfirmed | injection may be ignored | start at 100 ms and increase in 50 ms steps |
 | Mainboard boot-time init sequence | unconfirmed | failing to answer a configuration write raises an error | capture the log immediately after boot |
 | PCA9532 NAK handling | unconfirmed | no answer at the LED address may fault the mainboard | the emulator ACKs all three addresses |
+| Transfers lost after an even command byte | open, #18, measured 2026-10-06 | `LS0`/`LS2` data and the port-0 reads never reach the emulator, so two lamps stay dark and the port-0 keys likely do nothing | test the ACK-timing hypothesis: adjust the target's `TIMINGR` data hold, or put a logic analyser on the ACK bit |
 | Ellenby schematic | none | every pinout must be settled by measurement | one attempt at an enquiry email about 09-0128-00 |
 
 ## Sources

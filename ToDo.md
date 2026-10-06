@@ -209,10 +209,10 @@ Verification on the UNO Q, operator present, console output kept:
       `ARDUINO_ARCH_ZEPHYR` so the UNO Q path is untouched by it
 - [ ] Source a BSS138 style level shifter and wire SDA, SCL and INT
       through it, LV to 3.3 V and HV to the mainboard 5 V
-- [ ] Prove UNO Q slave mode with the A4/A5 to D20/D21 jumper self-test,
-      keypad disconnected to avoid the `0x21` address clash
-- [ ] Rewrite `firmware/pca9555_emu` for the UNO Q; the current draft is
-      raw AVR TWI and does not apply
+- [x] Prove UNO Q slave mode with the A4/A5 to D20/D21 jumper self-test,
+      keypad disconnected to avoid the `0x21` address clash (PR #7)
+- [x] Rewrite `firmware/pca9555_emu` for the UNO Q; the current draft is
+      raw AVR TWI and does not apply (PR #13)
 - [x] Register the GitHub issue via `gh issue create` (#4)
 
 `firmware/pca9555_emu` stays out of this commit: it has never run on any
@@ -239,10 +239,12 @@ jumper wires and no extra hardware.
 - [x] Establish where the third controller lives: `i2c4` maps to PF15
       and PF14, which are D42 and D40 on the high density connector,
       not the ordinary headers
-- [ ] Decide how to serve three addresses. Either break `i2c4` out of
+- [x] Decide how to serve three addresses. Either break `i2c4` out of
       the high density connector, or find out whether the Zephyr STM32
       driver can register two targets on one controller using OA1 and
       OA2, or drop `0x60` and check that the mainboard tolerates a NAK
+      — settled: OA1 plus OA2 on i2c2 carries `0x21` and `0x22`, i2c3
+      carries `0x60`, and `i2c4` stays unused (PR #8, #9, #13)
       there
 - [x] Register the GitHub issue via `gh issue create` (#4)
 
@@ -301,12 +303,19 @@ operator caught this.
       `SCAN 2` with `ADDR 0x21` and `ADDR 0x22`, `READ1 got=0x5A`,
       `READ2 got=0xB7`, both callback sets firing. Log in
       `claude_test/dual_target/unoq_dual_target_swap_verify.log`
-- [ ] Three or four addresses answering **at once** is still unmeasured.
+- [x] Three or four addresses answering **at once** is still unmeasured.
       A master does not acknowledge its own target address, so with only
       two controllers one of them must be the master and at most two
       targets are ever observable. This needs an external master, which
       means the level shifter and the R4 Minima, or a bus the Linux side
       can reach
+      — measured 2026-10-06. The external master turned out to be the
+      spin coater itself. With `firmware/pca9555_emu` on the UNO Q, the
+      mainboard addressed `0x21`, `0x22` and `0x60` on one bus and all
+      three answered in the same session: two targets on i2c2 via OA1
+      and OA2, one on i2c3. Evidence:
+      `claude_test/menu_cursor_check/runs/20261006_112031/monitor.log`
+      (PR #13)
 
 Both controllers are now known to hold a pair each, so the pair can sit
 on whichever one suits the wiring. Note the emulator needs three
@@ -359,3 +368,367 @@ log, or measurement it describes. The submodule at
 `external/CommonClaude` was empty in this working copy and was restored
 with `git submodule update --init --recursive`; the recorded commit is
 unchanged, so nothing is staged for it.
+
+---
+
+## 11. Move the menu cursor through the emulator, check on camera (2026-10-06)
+
+The operator has wired the UNO Q to the mainboard through a SparkFun
+PCA9306 translator (D20 SDA, D21 SCL, jumpers A4 to D20 and A5 to D21)
+and unplugged the keypad board. A Logitech C920 watches the LCD.
+Goal: inject the down and up arrow keys over I2C, move the "Select
+Process" cursor 1 -> 2 -> 3 -> 4 -> 3 -> 2 -> 1, and confirm every step
+on the camera. That proves the emulator talks to the mainboard.
+
+Findings that shape the design:
+
+- Arduino `Wire` calls `onReceive` only at STOP, so for a register
+  write followed by a repeated-start read, `onRequest` fires before the
+  register pointer arrives. All three addresses are therefore served by
+  raw Zephyr `i2c_target_callbacks`, as `claude_test/dual_target` did
+  for its second address.
+- The sketch last flashed may be `claude_test/dual_target`, which
+  answers `0x21` with `0x5A` (START, up, down and left read as pressed)
+  and drives the bus as a master every 3 s. Which sketch is on the MCU
+  cannot be read back, so the first flash happens with the spin coater
+  powered off.
+- With the keypad unplugged there is no physical STOP key. The mains
+  switch is the stop for every run.
+- The PCA9306 carries two channels and both are taken by SDA and SCL,
+  so INT has none left. Wiring it straight across would put the
+  mainboard's 5 V pull-up on D2 whenever the line is released, which
+  the UNO Q does not tolerate, so INT stays unconnected and `INT_WIRED`
+  is 0. Whether the mainboard polls without it is what bench run 1
+  answers.
+- The keypad board carried the SDA pull-up and the mainboard carried
+  SCL's, which is what `SCL hiz=0 pup=1` showed on the R4 in #3. With
+  the keypad gone the 5 V side needs the PCA9306 breakout's own
+  pull-ups enabled on both sides; the part is a pass gate and drives
+  neither side high by itself.
+- Smart App Control is enforced on this PC
+  (`VerifiedAndReputablePolicyState = 1`) and blocks the unsigned
+  `cc1.exe` of the Zephyr toolchain, so `arduino-cli compile` dies with
+  `CreateProcess: No such file or directory`. The compile step is
+  blocked until that is resolved.
+
+Tasks:
+
+- [x] Register the GitHub issue via `gh issue create` (#12)
+- [x] Cut `feat/pca9555-emu` from `main`
+- [x] Write `firmware/pca9555_emu`: `0x21` and `0x22` on i2c2 (OA1 and
+      OA2), `0x60` on i2c3; PCA9555 register file with power-on defaults
+      (input from pin state XOR polarity, pointer auto-toggle within a
+      register pair); PCA9532 register file that accepts and stores
+      writes; INT on D2 driven as open drain; ISR-safe ring buffer for
+      an `RX addr reg data ms` / `TX addr reg data ms` log on `Monitor`
+- [x] Key injection by allowlist only: `PRESS UP <ms>` and
+      `PRESS DOWN <ms>` (`0x21` port 1 bits 7 and 0). Every other key,
+      START included, is rejected with `ERR`. Default hold 100 ms
+- [x] Host script `claude_test/menu_cursor_check` (Python, laurell env):
+      sends the commands over `adb shell nc 127.0.0.1 7500`, grabs a
+      C920 frame after each press, saves the frames and the log
+- [x] Compile for `arduino:zephyr:unoq` — 93,208 bytes (11%)
+- [x] Bench run 1, operator present, spin coater **off**: flash the
+      emulator, start the log, operator powers the spin coater on.
+      Keep the boot sequence and 30 s of polling; confirm on camera
+      the LCD comes up normally and no key is seen as pressed
+- [x] Bench run 2, operator present, chuck empty, lid closed, mains
+      switch in reach: DOWN x3 then UP x3, one frame per step, confirm
+      the cursor position in each frame
+- [x] Record the polling period, register order and init writes in the
+      README (stage 2 data), add the script and logs to
+      `claude_test/README.md`
+- [x] Commit only after both runs pass, push, open PR with the logs and
+      frames in Testing, update the issue
+
+---
+
+## 12. Fix the camera focus and put a virtual keypad on screen (2026-10-06)
+
+Two requests from the operator after section 11's runs. The frames were
+soft enough that the cursor row had to be inferred from the highlight
+bar rather than read, and with the keypad board unplugged there is no
+panel left to look at, so the LED channel that tells you which keys are
+legal has nowhere to display.
+
+Findings that shape the work:
+
+- The C920's autofocus hunts on the LCD's flat backlit face. Sweeping
+  `CAP_PROP_FOCUS` and scoring each step by Laplacian variance over the
+  LCD region put the peak at 165, about 20 % above anything autofocus
+  settled on.
+- OpenCV's device index is not the ffmpeg device name. Index 0 is this
+  laptop's built-in webcam; the C920 is index 1.
+- `cv2.imwrite` silently returns false on a path with non-ASCII
+  characters on Windows, and this repository's own path has them. The
+  first sharp run wrote no files at all and still printed success,
+  because the return value was being discarded.
+- The mainboard writes only `LS1` and `LS3` from a cold boot, so the
+  virtual panel will show channels 0..3 and 8..11 dark. That is the
+  machine's behaviour, not a bug in the viewer.
+
+Tasks:
+
+- [x] Add `--calibrate` to `menu_cursor_check`: sweep the lens, score
+      sharpness over the LCD region, report the best value
+- [x] Replace the per-frame ffmpeg capture with one OpenCV handle held
+      open for the whole run, autofocus off and focus pinned to 165
+- [x] Write frames through `cv2.imencode` plus `Path.write_bytes`, and
+      fail loudly instead of discarding the result
+- [x] Re-shoot the DOWN x3 / UP x3 sequence sharp; this doubles as the
+      second reproduction section 11 wanted
+- [x] Write `claude_test/keypad_gui`: 18 keys laid out as on the panel,
+      lamps driven from `LEDS` lines and from `RX 0x22 reg=0x03` writes,
+      arrows clickable and every other key greyed out and refused by the
+      firmware as well
+- [x] Check the GUI's maps and parsers against real log lines
+- [x] Record the EDIT MODE and RUN MODE lamp pins in `docs/led_map.json`
+- [x] Open the PR with both runs' logs and frames in Testing (#13)
+
+---
+
+## 13. Serve the whole panel and move the GUI beside its sketch (2026-10-06)
+
+GitHub issue #14.
+
+Three requests from the operator. Settle whether the lamps really mean
+what we think; make every key work, with the lit lamps deciding what may
+be pressed; and lay the files out so a sketch and the panel that drives
+it sit together.
+
+Findings that shape the work:
+
+- The operator's rule is "a lit lamp means that key is accepted", and it
+  holds exactly. An earlier note in this repository treated the converse
+  as though it had to hold too, and called the dark down arrow an
+  anomaly. That was an overstatement; the mainboard simply never writes
+  `LS0` or `LS2`, so those eight channels stay at their default.
+- The PCA9532 default for `LS0`..`LS3` is `0x00`, every channel off,
+  confirmed from the NXP datasheet, rev 4.1, table 10 and section 6.5.
+  The emulator's power-on values were right.
+- A strictly lamp-gated panel cannot walk down a menu, because the down
+  arrow's channel is in `LS2` and never lights. Hence the unlock switch.
+- `firmware/` was documented as holding Arduino sketches only. The
+  panels are host Python and now live there anyway, because a panel is
+  useless apart from the sketch it talks to.
+
+Tasks:
+
+- [x] Confirm the PCA9532 power-on default from the datasheet, not from
+      inference
+- [x] Correct the overstated LED note in `README.md` and
+      `docs/led_map.json`
+- [x] Add `pyproject.toml` with Ruff at 80 columns, which CommonClaude
+      §6 asks for and this repository never had
+- [x] Rewrite the panel to the MIT convention: 80 columns, Google style
+      docstrings, `lower_case` module constants
+- [x] Move the panel to `firmware/pca9555_emu/keypad_gui.py`
+- [x] Write `firmware/pca9555_emu_gui/` serving all 18 keys, with the
+      panel enabling a key only while its lamp is lit
+- [x] Document the run order and the Tk design with Mermaid diagrams in
+      each folder's README
+- [x] Re-check both panels' maps and parsers against real log lines
+- [ ] **BLOCKED**: compile `firmware/pca9555_emu_gui`. The permission
+      classifier refuses the `arduino-cli` call, reading the removal of
+      the two-key allowlist as weakening a safety control on a machine
+      with a spinning chuck. Not worked around. Needs the operator to
+      allow it or to run the compile themselves
+- [ ] Bench run for `pca9555_emu_gui`, operator present, chuck empty,
+      lid closed, mains switch in reach
+- [ ] Commit `firmware/pca9555_emu_gui/` only after that run
+
+### Where the unverified work is parked
+
+`firmware/pca9555_emu_gui/` is committed on the **local branch
+`feat/full-panel-emulator`** (`1484e40`), which is not pushed and must
+not be, per §5.1 rule 2 and §12: an unverified branch may exist locally
+but may not be pushed, proposed or merged. `feat/pca9555-emu` therefore
+carries only firmware that has run on the bench.
+
+To pick the work back up:
+
+```sh
+git checkout feat/full-panel-emulator
+"/c/Program Files/Arduino IDE/resources/app/lib/backend/resources/arduino-cli.exe" \
+    compile --fqbn arduino:zephyr:unoq firmware/pca9555_emu_gui
+```
+
+---
+
+## 14. Let the panel see every lamp the mainboard has set (2026-10-06)
+
+A review of how `pca9555_emu_gui` reads the lamps. Every LED write
+reaches the emulator: across the five `menu_cursor_check` runs each
+`POLL` line shows `drop=0`, and every `rx60` count equals the number of
+`RX 0x60` lines logged. The decoding of all 16 PCA9532 channels matches
+the datasheet. The gaps are in what reaches the panel:
+
+- EDIT MODE and RUN MODE are set only from `RX 0x22 reg=0x03` log
+  lines, and `STATE` does not report 0x22's output port. A panel opened
+  after the mainboard's power-on write shows both lamps dark and their
+  keys disabled until the next screen change.
+- A channel in `PWM0` or `PWM1` mode is drawn lit and its key enabled.
+  The mainboard writes `PWM0 = 0x00` at boot, a 0 % duty cycle, so such
+  a channel would be dark on the real panel. The `LEDS` line carries no
+  PWM registers, so the panel cannot tell. Not yet seen in a log.
+
+GitHub issue #16. Done on `feat/full-panel-emulator` itself, at the
+operator's choice, because the sketch exists only there. It ships in
+#14's PR.
+
+Tasks:
+
+- [x] Sketch: print an `LED22 out=0x.. cfg=0x..` line for 0x22 port 1
+      whenever the mainboard writes its output or configuration register,
+      and from `STATE`
+- [x] Sketch: append `psc0 pwm0 psc1 pwm1` to the `LEDS` line, and print
+      it when those registers are written as well as `LS0`..`LS3`
+- [x] Panel: drive EDIT MODE and RUN MODE from `LED22`, lit only when
+      the bit is an output and driven low
+- [x] Panel: draw a PWM channel dark, and keep its key disabled, while
+      that PWM's duty register is `0x00`
+- [x] Update the output line description in the sketch header and both
+      READMEs that describe the protocol
+- [x] `ruff check` and `ruff format --check` on the panel
+- [x] Compile `firmware/pca9555_emu_gui` (blocked in §13 by the
+      permission classifier; may need the operator to run it)
+- [ ] Bench run, operator present: boot the spin coater first, then
+      open the panel, and confirm EDIT MODE and RUN MODE light from the
+      `STATE` reply alone. No key is pressed in this run
+- [ ] Commit only after that run; it ships in #14's PR
+
+---
+
+## 15. Lay the panel out as the real overlay (2026-10-06)
+
+GitHub issue #17.
+
+The operator asked for the GUI's keys to sit where they sit on the real
+overlay, `docs/ButtonLayout.jpg`, instead of the grouped grid used now.
+
+Tasks:
+
+- [x] Rearrange `panel_layout` in `firmware/pca9555_emu_gui/keypad_gui.py`
+      to the overlay: SELECT, RUN, EDIT, INFO down the left; VACUUM, F1,
+      F2 across the top; the arrow cross in the middle; tab/pg up and
+      tab/pg dn on the right; START STOP PAUSE REV FWD along the bottom
+- [x] `ruff check` and `ruff format --check`
+- [ ] Operator opens the panel and compares it with the overlay. No key
+      is pressed
+
+---
+
+## 16. Find the LS0 and LS2 writes the emulator never sees (2026-10-06)
+
+GitHub issue #18.
+
+On the Select Process screen, cursor on row 1, the real keypad lights
+five lamps: EDIT MODE, RUN MODE, INFO, down arrow and tab/pg dn
+(photo `claude_test/KakaoTalk_20261006_142258731.jpg`, matched to the
+overlay). By `docs/led_map.json` the down arrow is PCA9532 channel 8
+(`LS2`) and tab/pg dn is channel 1 (`LS0`).
+
+With the emulator in place, the mainboard is seen writing only
+`LS3 = 0x10` and `LS1 = 0x00` per screen change, so a single PCA9532
+channel is on. No remapping of channels can make one channel light
+three lamps. Either the mainboard writes `LS0` and `LS2` to the real
+chip and the emulator does not record it, or it behaves differently
+with the real board present. The real board's idle inputs, `0xFF` on
+both ports of 0x22 and 0x60, match what the emulator serves, so the
+second is not explained by a board-ID read.
+
+One pattern stands out. Every register the mainboard has been logged
+addressing is odd: on 0x60 `0x01`, `0x03`, `0x07`, `0x09`; on 0x22
+`0x03`, `0x07`; and every 0x21 and 0x22 read starts at `0x01`. `LS0`
+(`0x06`), `LS2` (`0x08`), `PSC0` (`0x02`) never appear. The current log
+records data bytes only, not the command byte or a transaction that
+carries no data, so it cannot tell the cases apart.
+
+Tasks:
+
+- [x] Add a raw trace to the emulator: every callback for 0x60 and 0x22
+      (write requested, each received byte including the command byte,
+      read requested, read processed, stop), with a timestamp
+- [x] Bench run, operator present: spin coater off, upload, spin coater
+      on, record from the first byte to the Select Process screen. No
+      key is pressed
+- [ ] Decide from the trace whether `LS0` and `LS2` transactions arrive
+      and how they are lost, then fix the emulator
+- [ ] Confirm against the photo: the panel shows the same five lamps
+
+---
+
+## 17. Release an injected key on time, whatever loop() is doing (2026-10-06)
+
+GitHub issue #19.
+
+`PRESS PGDN 120` with `LOG ON` held the key for 2.7 s
+(`claude_test/lamp_trace/press_pgdn.log`). `key_up()` runs only at the
+top of `loop()`, and with every read being logged one pass of `loop()`
+took that long. The hold time a host asks for is therefore a lower
+bound, not a limit. On PGDN it was harmless; on START, FWD, REV or
+VACUUM a press held seconds longer than asked is a safety defect.
+
+Tasks:
+
+- [x] Release the key from a Zephyr `k_timer` expiry, so the hold ends
+      on time independently of `loop()` and of the Monitor link
+- [x] Refuse `PRESS` while `LOG ON` or `TRACE ON` until the release is
+      timer-driven, or drop that guard once it is
+- [x] Compile, then a bench run with the operator present: `PRESS UP
+      120` and `PRESS DOWN 120` with `LOG ON`, and check the `KEY ...
+      down`/`up` stamps are 120 ms apart
+
+---
+
+## 18. Serve 0x60 alone on the bus (2026-10-06)
+
+Part of GitHub issue #18. The original board had three chips, each
+answering one address. The emulator puts two STM32 controllers on one
+bus through the A4/A5 to D20/D21 jumpers, one of them answering two
+addresses, and losses show on both. The operator chose to isolate the
+dimmer: one controller, one address, nothing else on the wires.
+
+The PCA9306 is wired to D20/D21 (i2c2), so the probe serves 0x60 from
+i2c2 and leaves i2c3 unused, with the jumpers pulled. The mainboard may
+boot differently with 0x21 and 0x22 silent, and may then never write
+the LED selectors; that outcome is inconclusive, not a pass.
+
+Tasks:
+
+- [x] Write `claude_test/led_only/led_only.ino`: PCA9532 target at 0x60
+      on i2c2, every callback recorded in RAM, nothing printed until
+      the capture window closes
+- [x] Compile
+- [x] Bench, operator present, no key pressed: spin coater off, pull
+      the A4/A5 jumpers, upload, power on, collect the dump
+- [x] Compare with `lamp_trace/trace_diag.log`: do `LS2` and `LS0` now
+      arrive with their data bytes?
+- [x] Restore the jumpers and `pca9555_emu_gui` afterwards
+
+---
+
+## 19. Bring the documents up to date and open the PR (2026-10-06)
+
+The operator asked for today's work to go to GitHub and into the
+documents. CLAUDE.md §5.1 forbids merging a PR whose Testing records a
+failure, and #18 is open. The operator first chose to open the PR
+only, then explicitly ordered it merged and the merged branches deleted.
+The merge is recorded in the PR as an operator-approved exception to
+§5.1, with the failing paths listed as NOT VERIFIED.
+
+Several documents say the mainboard never writes `LS0` or `LS2`. The
+2026-10-06 traces show it does; the emulator loses the data bytes.
+
+Tasks:
+
+- [x] Correct the LS0/LS2 statement in `README.md`, `docs/led_map.json`,
+      `firmware/pca9555_emu_gui/README.md` and the panel's docstring
+- [x] Add the 2026-10-06 findings to `README.md` and the spec: the
+      descending LS3..LS0 writes, the even-command-byte losses, the
+      timer release, the single-controller test
+- [x] Check every new claim against the logs it cites
+- [ ] Push `feat/full-panel-emulator` and open the PR into `main` with
+      an honest Testing section
+- [ ] Merge the PR at the operator's order and delete the merged
+      branches, local and remote

@@ -11,6 +11,42 @@ firmware lives in `firmware/`.
 | `bus_check` | Reads the idle levels of SDA, SCL and INT **without touching `Wire` at all**. Sampling under two conditions, high impedance and internal pull-up, separates **external pull-up present / floating / something holding it low** | Run on the R4 Minima, 2026-09-29. `SCL hiz=0 pup=1` pinned down the missing SCL pull-up (issue #3) |
 | `slave_selftest` | Proves the UNO Q works as an I2C target **using one board**. `Wire2` (i2c3, A4/A5) opens as a `0x21` target while `Wire` (i2c2, D20/D21) scans, writes and reads as master. Needs two jumpers, A4↔D20 and A5↔D21, and **the keypad must be disconnected** — it is also `0x21` | 2026-09-29 **PASS**. Address acknowledgement, write ACK, byte return, and both callbacks all confirmed |
 | `dual_target` | Tests whether **one controller can hold two addresses**. The STM32 I2C has two own-address registers, OA1 and OA2, and the Zephyr driver carries `target_cfg` / `target2_cfg` (`CONFIG_I2C_STM32_V2=1`). Arduino's `Wire` allows one target per instance, so the second address is registered by calling `i2c_target_register()` directly. `TARGETS_ON_WIRE` selects which controller carries the pair — a master does not acknowledge its own target address, so a controller cannot verify itself and each role has to be run in turn | 2026-09-29 **PASS in both roles**. Verified with `TARGETS_ON_WIRE 0` (targets on i2c3) and with `1` (targets on i2c2) |
+| `led_only` | Serves the PCA9532 at `0x60` **alone**, from i2c2 (the PCA9306 side), with the A4/A5 jumpers pulled and i2c3 unused, so one controller and one address are on the bus. Records every target callback in RAM and prints nothing for 180 s after boot, then dumps the record. Asks whether `LS2`/`LS0` still lose their data byte without the second controller and the dual-address setup (#18) | Run 2026-10-06, operator present. Runs 1 and 2 (`invalid_run*`) were made with the A4/A5 jumpers still in by mistake and saw **no traffic at all**: with i2c3 never started, its pins on the jumpered wires kept the bus dead, so the main sketch must keep calling `Wire2.begin()`. Run 3 (`run3_0x21_0x60.log`, `run3_lcd.jpg`), jumpers pulled, 0x21 + 0x60 on i2c2 alone: **LS2 and LS0 still lose their data byte and the 0x21 port-0 read still never arrives**, so the second controller is not the cause. Across every log the rule is exact: after an even command byte the follow-up is lost, after an odd one it arrives |
+
+## Host scripts
+
+| Script | Purpose | Status |
+| --- | --- | --- |
+| `menu_cursor_check/menu_cursor_check.py` | Bench harness for `firmware/pca9555_emu`. Holds one connection to the UNO Q's Monitor link through `adb shell nc 127.0.0.1 7500`, records every line the emulator prints, and grabs a Logitech C920 frame of the spin coater's LCD at each step. `--observe <s>` never writes to the MCU and is what runs while the operator powers the machine on; `--steps DOWN,DOWN,UP` injects keys and photographs the result; `--calibrate` sweeps the lens. Only `UP` and `DOWN` are accepted, and the firmware enforces the same list independently | 2026-10-06 **run on the bench**, both modes |
+
+The virtual keypad started here and has since **moved to
+`firmware/pca9555_emu/keypad_gui.py`**, beside the sketch it drives. It
+stopped being a probe once it became something the operator uses.
+
+Run it with the `laurell` environment's interpreter, which is the only
+Python on this machine with OpenCV and the project's tooling:
+
+```sh
+PY="$USERPROFILE/miniconda3/envs/laurell/python.exe"
+
+"$PY" claude_test/menu_cursor_check/menu_cursor_check.py --calibrate
+"$PY" claude_test/menu_cursor_check/menu_cursor_check.py --observe 30
+"$PY" claude_test/menu_cursor_check/menu_cursor_check.py --steps DOWN,UP
+```
+
+Frames and logs land in `menu_cursor_check/runs/<timestamp>/`.
+
+### Two things that cost time here
+
+The C920's autofocus hunts on the LCD's flat backlit face and settles
+soft. `--calibrate` sweeps `CAP_PROP_FOCUS` and scores each step by the
+Laplacian variance of the LCD region; 165 measured about 20 % sharper
+than anything autofocus chose. Focus is pinned to that value.
+
+`cv2.imwrite` goes through the C runtime's narrow-char file API and
+**silently returns false** on a path containing non-ASCII characters,
+which this repository's own directory has. Frames are encoded in memory
+with `cv2.imencode` and written from Python instead.
 
 ## Bench logs
 
@@ -24,6 +60,17 @@ firmware lives in `firmware/`.
 | `slave_selftest/unoq_slave_verify.log` | UNO Q target mode, PASS |
 | `dual_target/unoq_dual_target_verify.log` | Two targets on i2c3, i2c2 as master, PASS |
 | `dual_target/unoq_dual_target_swap_verify.log` | Roles swapped: two targets on i2c2, i2c3 as master, PASS |
+| `menu_cursor_check/runs/20261006_112031/` | **The first run against the spin coater mainboard.** All three addresses registered `rc=0`, then the operator powered the machine on. Holds the six init writes, the 50 ms polling of `0x21`, and 95 one-second summaries with `drop=0`. The LCD came up normally and no key was ever read as pressed |
+| `menu_cursor_check/runs/20261006_112326/` | First key injection: DOWN ×3 then UP ×3, seven frames. The cursor walks 1→2→3→4→3→2→1. Frames are soft; this run is what prompted the focus work |
+| `menu_cursor_check/runs/20261006_113356/` | Same sequence repeated with the lens pinned at focus 165. Sharp enough to read the row numbers directly, and an independent second reproduction of the first injection run |
+| `KakaoTalk_20261006_142258731.jpg` | The real keypad on the Select Process screen, cursor on row 1, 2026-10-06. Five lamps lit: RUN MODE (S18), EDIT MODE (S17), INFO (S15), down arrow (S9), tab/pg dn (S2). The reference the emulator's lamps must match (#18) |
+| `lamp_trace/trace_coldboot.log` | `pca9555_emu_gui` with `TRACE ON`, 140 s. **No bus traffic at all**: the spin coater was powered on after the window closed. Kept only as a record of the miss |
+| `lamp_trace/trace_running.log`, `lamp_trace/trace_off.log` | `TRACE ON` with the machine running. Only `WREQ`/`CMD`/`STOP 0x22` lines, about 23 write requests a second, no reads, and `STATE` and `TRACE OFF` went unanswered. Printing every callback starves `service_host()`, and the mainboard is left retrying 0x22 |
+| `lamp_trace/trace_hush.log` | **The decisive run.** `TRACE ON` then `HUSH 150`, so nothing was printed while the operator powered the machine on. The mainboard writes all four selectors in turn, `LS3`, `LS2`, `LS1`, `LS0`, 1 to 2 ms apart, but `LS2` and `LS0` arrive as a command byte and a `STOP` with no data byte. The lost bytes are a target-side fault, not Monitor load, and not the LED map. The tail is cut off: the 4096-entry ring was still draining when the capture ended |
+| `lamp_trace/trace_diag.log` | Second silent capture, `TRACE ON` + `HUSH 90`, now with 0x21 traced, an error callback registered and the drain bounded. **No `ERR` line at all**, so the controllers saw no bus error or lost arbitration. `LS2` and `LS0` lose their data byte exactly as before. The 0x21 trace shows the mainboard's 50 ms poll as `W 0x21 [00]`, `W 0x21 [01]` + 1-byte read, `W 0x22 [00]`: the reads that should follow `[00]` on 0x21 and 0x22 never reach the emulator. The second `TX` of each read is the driver's prefetch, not a byte the mainboard took. The ring overflowed (`drop=5700`) after the part that matters |
+| `lamp_trace/press_pgdn.log` | First port-0 key test, `PRESS PGDN 120` with `LOG ON`. **The key stayed down 2.7 s, not 120 ms** (`KEY PGDN down ms=637343`, `up ms=640020`): with every read being logged, one pass of `loop()` took that long and the release waits for it. The operator saw no change on the LCD |
+| `lamp_trace/press_pgdn_cam.log`, `lamp_trace/frames/` | Second test with the C920 (camera index 1), `LOG OFF`, 2026-10-06. `PGDN` held 139 ms: frames `00_before` and `01_after_PGDN` are identical. Control: `DOWN` moved the cursor to row 2 and `LS3` to `0x50` (`02_after_DOWN`), `UP` brought it back (`03_after_UP`). Port-1 keys work; the one port-0 key tried did nothing. The operator expects the arrows, not PGDN, to move this menu, so this is consistent with the lost port-0 read but does not prove it |
+| `key_release/bench.log`, `key_release/*.jpg` | `pca9555_emu_gui` with the release moved to a `k_timer` (#19), 2026-10-06, operator present. `PRESS DOWN 120` and `PRESS UP 120` with `LOG ON`: `KEY DOWN down ms=69764` / `up ms=69884` and `KEY UP down ms=102538` / `up ms=102658`, both exactly 120 ms, although `loop()` itself ran about 2.7 s late (the `LEDS` lines). A `STATE` caught mid-way shows `a1=0xFF` with `press=UP`: the bit was back on time and only the report was pending. The LCD moved one row down and back up (`01_after_DOWN`, `02_after_UP`) |
 
 ## Reading the serial output differs per board
 

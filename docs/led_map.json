@@ -4,7 +4,7 @@
     "product": "Laurell spin coater keypad",
     "captured": "2026-09-29",
     "method": "firmware/pca9532_led WALK at 4000 ms per channel, one LED lit at a time, read out visually against the predicted order",
-    "note": "The mainboard lights a button LED only while that button is a legal input in the current machine state, so the LS register values double as a live list of which commands are currently accepted.",
+    "note": "The mainboard lights a button LED only while that button is a legal input in the current machine state, so a lit LED means that command is currently accepted. The emulator does not yet see every lamp: the mainboard writes all four selectors LS3, LS2, LS1, LS0 on a screen change, but the LS2 and LS0 data bytes are lost before they reach it (issue #18), so channels 0..3 and 8..11 read off on the emulator even where the real keypad lights them.",
     "led_count_total": 18,
     "chips": {
         "0x60": {
@@ -16,7 +16,9 @@
         },
         "0x22": {
             "part": "PCA9555D",
-            "role": "the remaining 2 LEDs, exact pins not yet identified"
+            "role": "the remaining 2 LEDs, on output port 1",
+            "led_pins": "0x03 output port 1 bit 0 EDIT MODE, bit 1 RUN MODE, active low",
+            "config": "the mainboard writes 0x07 = 0x00 at power on, making all of port 1 outputs"
         }
     },
     "leds": [
@@ -38,17 +40,19 @@
         {"channel": 15, "name": "ARROW_UP", "label": "up arrow", "button_addr": "0x21", "button_reg": "0x01", "button_bit": 7, "confirmed": "walk"}
     ],
     "leds_not_on_pca9532": [
-        {"name": "EDIT_MODE", "label": "EDIT MODE", "button_addr": "0x22", "button_reg": "0x00", "button_bit": 0, "led_location": "unknown, expected on 0x22"},
-        {"name": "RUN_MODE", "label": "RUN MODE", "button_addr": "0x22", "button_reg": "0x00", "button_bit": 1, "led_location": "unknown, expected on 0x22"}
+        {"name": "EDIT_MODE", "label": "EDIT MODE", "button_addr": "0x22", "button_reg": "0x00", "button_bit": 0, "led_addr": "0x22", "led_reg": "0x03", "led_bit": 0, "active_level": "low", "confirmed": "mainboard log 2026-10-06"},
+        {"name": "RUN_MODE", "label": "RUN MODE", "button_addr": "0x22", "button_reg": "0x00", "button_bit": 1, "led_addr": "0x22", "led_reg": "0x03", "led_bit": 1, "active_level": "low", "confirmed": "mainboard log 2026-10-06"}
     ],
     "findings": [
         "PCA9532 channel n drives the LED of the button at 0x21 bit n, counting input port 0 bits 0..7 as channels 0..7 and input port 1 bits 0..7 as channels 8..15. Button and LED share the same index.",
         "Header X1 carries only VDD, GND, SDA, SCL and INT, so every LED must be driven over I2C. All 16 pins of 0x21 are buttons and the PCA9532 covers 16 LEDs, therefore the EDIT MODE and RUN MODE LEDs can only be on 0x22.",
-        "0x22 has 14 pins of unknown function. Two of them are those LEDs; some of the rest may be outputs of unused MAX6818 debouncer channels."
+        "0x22 has 14 pins of unknown function. Two of them are those LEDs; some of the rest may be outputs of unused MAX6818 debouncer channels.",
+        "Settled from the mainboard side on 2026-10-06. At power on the mainboard writes 0x22 register 0x07 = 0x00, declaring all of port 1 as outputs, then writes register 0x03 = 0xFC, pulling bits 0 and 1 low. Those two bits are the EDIT MODE and RUN MODE lamps, active low. Evidence: claude_test/menu_cursor_check/runs/20261006_112031/monitor.log",
+        "Channel 15 is confirmed a second way, without the keypad. The mainboard writes LS3 = 0x10 while the Select Process cursor is on row 1 and 0x50 while it is on rows 2 to 4; the only bit that changes is channel 15, which is the up arrow, and the up arrow is exactly the key that is illegal on row 1. The lamp traffic therefore reports cursor position on its own."
     ],
     "open_items": [
-        "Channel 0 was confirmed on its own. Channels 1..15 were read out in one visual pass against a predicted order, which is weaker evidence than an independent readout. A blind spot check is in progress.",
-        "The two remaining LED pins on 0x22 are not identified. Driving an unknown 0x22 pin as an output risks contention with a MAX6818 push-pull output, so this is not attempted without a decision on method.",
+        "Channel 0 was confirmed on its own. Channels 1..15 were read out in one visual pass against a predicted order, which is weaker evidence than an independent readout. Channel 15 has since been confirmed a second way, from the mainboard side, by watching LS3 track the cursor.",
+        "Corrected 2026-10-06: an earlier entry said the mainboard writes only LS1 and LS3. A raw trace shows it writing LS3, LS2, LS1, LS0, 1 to 2 ms apart; the LS2 (0x08) and LS0 (0x06) transfers reach the emulator as a command byte and a STOP with no data. On the real keypad the same Select Process screen lights the down arrow (channel 8) and tab/pg dn (channel 1). Every transfer that follows an even command byte is lost, on any address, with one or two STM32 controllers; the leading hypothesis is ACK timing through the PCA9306. Open as issue #18.",
         "Nothing here is confirmed twice yet, against the two reproductions the spec requires."
     ]
 }

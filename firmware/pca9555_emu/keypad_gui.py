@@ -1,0 +1,469 @@
+"""Virtual Laurell keypad, driven by ``firmware/pca9555_emu``.
+
+The real keypad board is unplugged and the UNO Q answers in its place,
+so there is no panel left to look at. This puts one back on screen: the
+18 keys with their indicator lamps, lit from the LED traffic the
+mainboard is sending to the emulator right now.
+
+What the lamps mean is the point. The mainboard lights a key's lamp
+only while that key is a legal input in the current machine state, so a
+lit lamp means the spin coater will accept that key. The converse does
+not hold: a key may be legal and unlit, because the mainboard writes
+only the LED selector registers it chooses to manage.
+
+Two lines of the emulator's output feed the lamps::
+
+    LEDS <16 chars>              PCA9532 channels 0..15, from 0x60
+    RX 0x22 reg=0x03 data=0x..   EDIT MODE and RUN MODE, bits 0 and 1
+
+Only the keys in ``live_keys`` can be clicked. The rest are drawn greyed
+and the firmware refuses them by name as well, so a stray click cannot
+reach START, STOP or VACUUM. That matches what has been verified on the
+bench; widening it is a decision for the operator, not for this file.
+"""
+
+import json
+import os
+import pathlib
+import queue
+import re
+import subprocess
+import threading
+import tkinter as tk
+from tkinter import font as tkfont
+
+adb_path = os.path.expandvars(
+    r"%LOCALAPPDATA%\Arduino15\packages\arduino\tools"
+    r"\adb\32.0.0\adb.exe"
+)
+
+monitor_endpoint = "127.0.0.1 7500"
+
+docs_dir = pathlib.Path(__file__).resolve().parents[2] / "docs"
+
+# Keys this window may send. firmware/pca9555_emu enforces the same
+# list, so a click on anything else would return ERR, not a press.
+live_keys = ("ARROW_UP", "ARROW_DOWN")
+
+# docs/button_map.json's long names to the host protocol's short ones.
+key_names = {
+    "TAB_LEFT_PG_UP": "PGUP",
+    "TAB_RIGHT_PG_DN": "PGDN",
+    "FWD": "FWD",
+    "ARROW_RIGHT": "RIGHT",
+    "F2": "F2",
+    "F1": "F1",
+    "VACUUM": "VACUUM",
+    "SELECT_PROCESS": "SELECT",
+    "ARROW_DOWN": "DOWN",
+    "REV": "REV",
+    "ARROW_LEFT": "LEFT",
+    "PAUSE": "PAUSE",
+    "STOP": "STOP",
+    "START": "START",
+    "INFO": "INFO",
+    "ARROW_UP": "UP",
+    "EDIT_MODE": "EDIT",
+    "RUN_MODE": "RUN",
+}
+
+press_hold_default_ms = 120
+press_hold_min_ms = 20
+press_hold_max_ms = 1000
+
+# The two lamps that are not on the PCA9532. Identified from the stage 2
+# log: the mainboard declares 0x22 port 1 all outputs, then drives bits
+# 0 and 1 low, active low like every other lamp here.
+led_0x22_reg = 0x03
+led_0x22_bits = {"EDIT_MODE": 0, "RUN_MODE": 1}
+
+# Panel layout, as (button name, row, column). It follows the grouping
+# of docs/ButtonLayout.jpg rather than its exact geometry.
+panel_layout = (
+    ("SELECT_PROCESS", 0, 0),
+    ("INFO", 0, 1),
+    ("EDIT_MODE", 0, 3),
+    ("RUN_MODE", 0, 4),
+    ("F1", 1, 0),
+    ("F2", 1, 1),
+    ("VACUUM", 1, 3),
+    ("PAUSE", 1, 4),
+    ("TAB_LEFT_PG_UP", 2, 0),
+    ("TAB_RIGHT_PG_DN", 2, 1),
+    ("START", 2, 3),
+    ("STOP", 2, 4),
+    ("ARROW_UP", 3, 1),
+    ("FWD", 3, 3),
+    ("REV", 3, 4),
+    ("ARROW_LEFT", 4, 0),
+    ("ARROW_DOWN", 4, 1),
+    ("ARROW_RIGHT", 4, 2),
+)
+
+colours = {
+    "bg": "#1b1f24",
+    "panel": "#252b33",
+    "text": "#e6edf3",
+    "muted": "#7d8795",
+    "lamp_off": "#3a424d",
+    "lamp_on": "#ffcc44",
+    "lamp_pwm": "#d08a2a",
+    "key": "#39414c",
+    "key_live": "#2f6f4f",
+    "key_edge": "#4a5361",
+}
+
+led_pattern = re.compile(r"^LEDS ([.*01]{16})")
+rx_0x22_pattern = re.compile(r"^RX 0x22 reg=0x(\w{2}) data=0x(\w{2})")
+
+log_height_lines = 14
+drain_period_ms = 60
+
+
+def load_maps() -> tuple[dict, dict]:
+    """Read the button and LED maps that describe the real panel.
+
+    Returns:
+        A pair of dictionaries. The first maps a button name to its
+        entry in ``docs/button_map.json``; the second maps a button
+        name to the PCA9532 channel that drives its lamp.
+    """
+    buttons = json.loads(
+        (docs_dir / "button_map.json").read_text(encoding="utf-8")
+    )
+    leds = json.loads((docs_dir / "led_map.json").read_text(encoding="utf-8"))
+    by_name = {entry["name"]: entry for entry in buttons["buttons"]}
+    channel = {led["name"]: led["channel"] for led in leds["leds"]}
+    return by_name, channel
+
+
+class MonitorLink:
+    """One adb-tunnelled connection to the MCU's Monitor link.
+
+    The UNO Q does not expose the MCU's serial port to the host. The
+    Router Bridge puts it on a socket on the board's Linux side
+    instead, which adb reaches.
+    """
+
+    def __init__(self) -> None:
+        """Prepare the link without opening it yet."""
+        self.lines: queue.Queue[str] = queue.Queue()
+        self._proc: subprocess.Popen | None = None
+
+    def start(self) -> None:
+        """Open the connection and begin reading it on a thread."""
+        self._proc = subprocess.Popen(
+            [adb_path, "shell", "nc " + monitor_endpoint],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        threading.Thread(target=self._reader, daemon=True).start()
+
+    def _reader(self) -> None:
+        """Feed every line the emulator prints into the queue."""
+        for raw in self._proc.stdout:
+            self.lines.put(raw.decode("utf-8", "replace").rstrip("\r\n"))
+
+    def send(self, command: str) -> bool:
+        """Send one command line to the emulator.
+
+        Args:
+            command: The line to send, without its terminator.
+
+        Returns:
+            True when the line went out, False when the link is down.
+        """
+        if self._proc is None or self._proc.poll() is not None:
+            return False
+        self._proc.stdin.write((command + "\n").encode("ascii"))
+        self._proc.stdin.flush()
+        return True
+
+    def stop(self) -> None:
+        """Close the connection if it is still open."""
+        if self._proc is not None and self._proc.poll() is None:
+            self._proc.terminate()
+
+
+class Keypad(tk.Tk):
+    """The panel window.
+
+    Tk is single threaded, so the reader thread only ever puts lines on
+    a queue; every widget call happens here, on the main thread, from
+    the periodic drain.
+    """
+
+    def __init__(
+        self, buttons: dict, channels: dict, link: MonitorLink
+    ) -> None:
+        """Build the window and start watching the link.
+
+        Args:
+            buttons: Button name to ``docs/button_map.json`` entry.
+            channels: Button name to PCA9532 channel.
+            link: An already started connection to the emulator.
+        """
+        super().__init__()
+        self.buttons = buttons
+        self.channels = channels
+        self.link = link
+        self.lamps: dict[str, tuple[tk.Canvas, int]] = {}
+        self.keys: dict[str, tk.Button] = {}
+
+        self.title("Laurell keypad (emulated)")
+        self.configure(bg=colours["bg"])
+        self.hold_ms = tk.IntVar(value=press_hold_default_ms)
+
+        self._build()
+        self.protocol("WM_DELETE_WINDOW", self._close)
+        self.after(drain_period_ms, self._drain)
+        self.link.send("STATE")
+
+    def _build(self) -> None:
+        """Lay out the heading, the panel, the controls and the log."""
+        label_font = tkfont.Font(family="Segoe UI", size=9)
+        mono_font = tkfont.Font(family="Consolas", size=9)
+
+        tk.Label(
+            self,
+            text="Lamps are lit by the mainboard. A lit key is one the "
+            "spin coater will accept right now.",
+            bg=colours["bg"],
+            fg=colours["muted"],
+            font=label_font,
+        ).grid(row=0, column=0, padx=12, pady=(12, 6), sticky="w")
+
+        panel = tk.Frame(self, bg=colours["panel"], padx=14, pady=14)
+        panel.grid(row=1, column=0, padx=12, sticky="ew")
+
+        for name, row, col in panel_layout:
+            self._build_key(panel, name, row, col, label_font)
+
+        self._build_controls(label_font)
+
+        self.status = tk.Label(
+            self,
+            text="connecting...",
+            bg=colours["bg"],
+            fg=colours["muted"],
+            font=label_font,
+        )
+        self.status.grid(row=3, column=0, padx=12, sticky="w")
+
+        self.log = tk.Text(
+            self,
+            height=log_height_lines,
+            width=74,
+            bg="#12161a",
+            fg=colours["muted"],
+            font=mono_font,
+            relief="flat",
+            state="disabled",
+        )
+        self.log.grid(row=4, column=0, padx=12, pady=(4, 12), sticky="ew")
+
+    def _build_controls(self, label_font: tkfont.Font) -> None:
+        """Add the hold time spinner and the STATE button."""
+        controls = tk.Frame(self, bg=colours["bg"])
+        controls.grid(row=2, column=0, padx=12, pady=(10, 4), sticky="w")
+
+        tk.Label(
+            controls,
+            text="hold (ms)",
+            bg=colours["bg"],
+            fg=colours["muted"],
+            font=label_font,
+        ).pack(side="left")
+        tk.Spinbox(
+            controls,
+            from_=press_hold_min_ms,
+            to=press_hold_max_ms,
+            increment=10,
+            width=6,
+            textvariable=self.hold_ms,
+            font=label_font,
+        ).pack(side="left", padx=(6, 16))
+        tk.Button(
+            controls,
+            text="STATE",
+            command=lambda: self.link.send("STATE"),
+            font=label_font,
+        ).pack(side="left")
+
+    def _build_key(
+        self,
+        parent: tk.Frame,
+        name: str,
+        row: int,
+        col: int,
+        label_font: tkfont.Font,
+    ) -> None:
+        """Add one key and its lamp to the panel.
+
+        Args:
+            parent: The panel frame.
+            name: Button name as used in ``docs/button_map.json``.
+            row: Grid row within the panel.
+            col: Grid column within the panel.
+            label_font: Font shared by every key face.
+        """
+        info = self.buttons.get(name, {})
+        is_live = name in live_keys
+
+        cell = tk.Frame(parent, bg=colours["panel"])
+        cell.grid(row=row, column=col, padx=6, pady=6)
+
+        lamp = tk.Canvas(
+            cell,
+            width=14,
+            height=14,
+            bg=colours["panel"],
+            highlightthickness=0,
+        )
+        dot = lamp.create_oval(
+            2,
+            2,
+            12,
+            12,
+            fill=colours["lamp_off"],
+            outline=colours["key_edge"],
+        )
+        lamp.pack()
+        self.lamps[name] = (lamp, dot)
+
+        key = tk.Button(
+            cell,
+            text=info.get("label", name),
+            width=14,
+            font=label_font,
+            bg=colours["key_live"] if is_live else colours["key"],
+            fg=colours["text"] if is_live else colours["muted"],
+            activebackground=colours["key_live"],
+            relief="flat",
+            state="normal" if is_live else "disabled",
+            disabledforeground=colours["muted"],
+            command=((lambda n=name: self._press(n)) if is_live else None),
+        )
+        key.pack(pady=(3, 0))
+        self.keys[name] = key
+
+    def _press(self, name: str) -> None:
+        """Ask the emulator to hold one key down.
+
+        Args:
+            name: Button name as used in ``docs/button_map.json``.
+        """
+        short = key_names[name]
+        command = f"PRESS {short} {self.hold_ms.get()}"
+        if self.link.send(command):
+            self._write_log(">> " + command)
+        else:
+            self._write_log(">> link is down")
+
+    def _set_lamp(self, name: str, state: str) -> None:
+        """Paint one lamp.
+
+        Args:
+            name: Button name whose lamp to paint.
+            state: A key of ``colours``, such as ``"lamp_on"``.
+        """
+        entry = self.lamps.get(name)
+        if entry is None:
+            return
+        canvas, dot = entry
+        canvas.itemconfigure(dot, fill=colours[state])
+
+    def _apply_leds(self, pattern: str) -> None:
+        """Light the PCA9532 lamps from one LEDS line.
+
+        Args:
+            pattern: The 16 character field of a ``LEDS`` line.
+        """
+        for name, channel in self.channels.items():
+            mark = pattern[channel]
+            if mark == "*":
+                self._set_lamp(name, "lamp_on")
+            elif mark in "01":
+                self._set_lamp(name, "lamp_pwm")
+            else:
+                self._set_lamp(name, "lamp_off")
+
+    def _apply_0x22(self, reg: int, value: int) -> None:
+        """Light EDIT MODE and RUN MODE from an 0x22 output write.
+
+        Args:
+            reg: Register the mainboard wrote.
+            value: Byte it wrote. The lamps are active low.
+        """
+        if reg != led_0x22_reg:
+            return
+        for name, bit in led_0x22_bits.items():
+            is_lit = (value >> bit) & 1 == 0
+            self._set_lamp(name, "lamp_on" if is_lit else "lamp_off")
+
+    def _drain(self) -> None:
+        """Consume whatever the reader thread has queued, then requeue."""
+        saw_any = False
+        while True:
+            try:
+                line = self.link.lines.get_nowait()
+            except queue.Empty:
+                break
+            saw_any = True
+            self._consume(line)
+        if saw_any:
+            self.status.configure(text="link up")
+        self.after(drain_period_ms, self._drain)
+
+    def _consume(self, line: str) -> None:
+        """Route one line from the emulator.
+
+        Args:
+            line: One line as the emulator printed it.
+        """
+        match = led_pattern.match(line)
+        if match:
+            self._apply_leds(match.group(1))
+            self._write_log(line)
+            return
+
+        match = rx_0x22_pattern.match(line)
+        if match:
+            self._apply_0x22(int(match.group(1), 16), int(match.group(2), 16))
+            self._write_log(line)
+            return
+
+        # The 50 ms poll would bury everything else; keep the rest.
+        if not line.startswith(("TX ", "POLL ")):
+            self._write_log(line)
+
+    def _write_log(self, line: str) -> None:
+        """Append one line to the log pane.
+
+        Args:
+            line: Text to append.
+        """
+        self.log.configure(state="normal")
+        self.log.insert("end", line + "\n")
+        self.log.see("end")
+        self.log.configure(state="disabled")
+
+    def _close(self) -> None:
+        """Drop the link and close the window."""
+        self.link.stop()
+        self.destroy()
+
+
+def main() -> None:
+    """Open the link and run the panel until the window is closed."""
+    if not os.path.exists(adb_path):
+        raise SystemExit(f"adb not found at {adb_path}")
+    buttons, channels = load_maps()
+    link = MonitorLink()
+    link.start()
+    Keypad(buttons, channels, link).mainloop()
+
+
+if __name__ == "__main__":
+    main()

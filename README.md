@@ -43,24 +43,38 @@ that answers the same three addresses is indistinguishable from it.
 
 ## Status
 
-Stage 1 of the three the specification defines is complete.
+All three stages have now been exercised on the real machine. The
+emulator has replaced the keypad board and moved the menu cursor.
 
 ```mermaid
 flowchart LR
     S1["<b>1 · Explore</b><br/>addresses, button bitmap, LED map<br/><i>done 2026-09-29</i>"]
-    S2["<b>2 · Record</b><br/>log what the mainboard sends<br/><i>not started</i>"]
-    S3["<b>3 · Emulate</b><br/>inject keys, drive the coater<br/><i>not started</i>"]
+    S2["<b>2 · Record</b><br/>log what the mainboard sends<br/><i>done 2026-10-06</i>"]
+    S3["<b>3 · Emulate</b><br/>inject keys, drive the coater<br/><i>arrows verified 2026-10-06</i>"]
     S1 --> S2 --> S3
 
     classDef done fill:#d8eedd,stroke:#2f7d55,color:#11161d
-    classDef todo fill:#eceff3,stroke:#9aa3b0,color:#3d4a59
-    class S1 done
-    class S2,S3 todo
+    classDef part fill:#fdf0d0,stroke:#a8821f,color:#11161d
+    class S1,S2 done
+    class S3 part
 ```
 
-The keypad board was detached from the mainboard and run standalone off
-the Arduino UNO Q's 3.3 V rail. All 18 buttons and all 16 PCA9532 LEDs
-were mapped on that bench. **The mainboard has never been connected.**
+Stage 1 ran with the keypad board detached from the mainboard and
+powered off the Arduino UNO Q's 3.3 V rail; all 18 buttons and all 16
+PCA9532 LEDs were mapped there. For stages 2 and 3 the keypad was
+unplugged for good and the UNO Q took its place on the mainboard bus
+through a PCA9306 translator. The mainboard boots normally against the
+emulator and the up and down arrows move the "Select Process" cursor.
+
+Stage 3 is **partial**. `firmware/pca9555_emu` serves the two arrow
+keys only and is fully verified. `firmware/pca9555_emu_gui` serves all
+18 keys with a panel gated by the lamps; on the bench (2026-10-06) the
+arrows, the lamp read-back and the timed key release work, but the
+emulator loses some of the mainboard's transfers (see
+[The open fault](#the-open-fault-lost-transfers-after-an-even-command-byte)),
+so the down arrow and tab/pg dn lamps stay dark and the eight keys on
+`0x21` port 0 most likely do not reach the mainboard. Nothing yet drives
+the chuck.
 
 ## Hardware
 
@@ -255,11 +269,17 @@ docs/
 firmware/
   i2c_scan/                   bus address scan
   pca9532_led/                LED control, including a walk mode for mapping
+  pca9555_emu/                emulator, arrow keys only, with its Tk panel
+  pca9555_emu_gui/            emulator, all 18 keys, with a lamp-gated panel
 claude_test/
   keypad_probe/               button mapping probe and its bench logs
   bus_check/                  reads SDA, SCL and INT levels without using Wire
   slave_selftest/             proves the UNO Q works as an I2C target
   dual_target/                proves one controller can hold two addresses
+  menu_cursor_check/          camera harness and the first emulator runs
+  lamp_trace/                 raw traces of the lost LS0/LS2 bytes
+  key_release/                the timer-driven key release on the bench
+  led_only/                   the bus served by one controller alone
 ```
 
 ### Firmware
@@ -269,10 +289,197 @@ claude_test/
 | `i2c_scan` | bus address scan | verified on hardware |
 | `pca9532_led` | LED control (`LED n on/off/pwm0/pwm1`, `ALL off`, `WALK ms`, `HALT`) | verified on hardware |
 | `pca9555_poll` | button polling | not written; `claude_test/keypad_probe` covers it for now |
-| `pca9555_emu` | slave emulator | not written |
+| `pca9555_emu` | slave emulator: answers `0x21`, `0x22` and `0x60` for the mainboard, logs its traffic, injects the arrow keys | verified on hardware 2026-10-06 |
+| `pca9555_emu_gui` | the same emulator serving all 18 keys, with `LEDS`/`LED22` lamp lines, a timer-driven key release, and `TRACE`/`HUSH` bus diagnostics | **partly verified** 2026-10-06: arrows, lamp read-back, release timing. Port-0 keys and the LS0/LS2 lamps fail ([#18](https://github.com/coport-uni/SpinCoaterAutomation_I2C/issues/18)) |
+
+[firmware/pca9555_emu/](firmware/pca9555_emu/) holds the sketch and the
+Tk panel that drives it, `keypad_gui.py`, with a README giving the run
+order and how the two fit together. The Python beside the sketch is host
+tooling, not firmware; it lives there because a panel is useless apart
+from the sketch it talks to. `pyproject.toml` holds the Ruff settings
+for it, at the same 80 columns the sketches use.
+
+[firmware/pca9555_emu_gui/](firmware/pca9555_emu_gui/) is the full-panel
+variant. Its panel lays the keys out as the real overlay and enables a
+key only while its lamp is lit, with an "unlock all keys" switch for the
+lamps the emulator cannot yet see.
 
 `pca9532_led` refuses `ALL on` on purpose, to avoid lighting all 16
 LEDs at once while the board is running off a 3.3 V bench supply.
+
+`pca9555_emu` refuses every key except the two arrows, by name, in
+`handle_line()`. START, STOP and VACUUM cannot be reached from the host
+protocol at all — not because the host declines to ask, but because the
+firmware will not serve the request. Its host commands are:
+
+```
+PRESS UP [ms]      hold the up arrow, default 100 ms, 20..1000
+PRESS DOWN [ms]    hold the down arrow
+RELEASE            release early
+STATE              print the register files and the INT level
+LOG ON | LOG OFF   log every read, not only the ones that changed
+```
+
+## The mainboard, measured 2026-10-06
+
+With the keypad unplugged and `firmware/pca9555_emu` answering in its
+place, the spin coater was powered on and its traffic recorded from the
+first byte. This is the stage 2 data the specification asked for.
+
+```mermaid
+flowchart LR
+    MB["<b>Spin coater mainboard</b><br/>sole I2C master · 5 V"]
+    LS["<b>PCA9306</b><br/>VREF1 3.3 V · VREF2 5 V"]
+    I2C2["<b>i2c2</b> · D20/D21<br/>OA1 <code>0x21</code> · OA2 <code>0x22</code>"]
+    I2C3["<b>i2c3</b> · A4/A5<br/>OA1 <code>0x60</code>"]
+    MB <--> LS
+    LS <--> I2C2
+    LS <--> I2C3
+
+    classDef ext fill:#eceff3,stroke:#9aa3b0,color:#11161d
+    classDef emu fill:#d8eedd,stroke:#2f7d55,color:#11161d
+    class MB,LS ext
+    class I2C2,I2C3 emu
+```
+
+A4 and A5 are jumpered to D20 and D21, so both controllers sit on the
+one physical bus. All three addresses registered with `rc=0`.
+
+### What it writes at power-on
+
+Six writes, and then it never writes again unless something changes:
+
+| Order | Address | Register | Value | Meaning |
+| --- | --- | --- | --- | --- |
+| 1 | `0x60` | `0x03` PWM0 | `0x00` | dimmer duty |
+| 2 | `0x22` | `0x03` output 1 | `0x00` | |
+| 3 | `0x22` | `0x07` config 1 | `0x00` | **port 1 is all outputs** |
+| 4 | `0x60` | `0x09` LS3 | `0x10` | channel 14 on |
+| 5 | `0x60` | `0x07` LS1 | `0x00` | channels 4–7 off |
+| 6 | `0x22` | `0x03` output 1 | `0xFC` | **bits 0 and 1 driven low** |
+
+Write 3 answers an open item. The mainboard declares all of `0x22`
+port 1 as outputs and then pulls bits 0 and 1 low, which is how the two
+LEDs that are not on the PCA9532 are driven. The buttons EDIT MODE and
+RUN MODE are on `0x22` port **0**; their indicator LEDs are on `0x22`
+port **1**, bits 0 and 1, active low.
+
+This table is what the emulator **received**, and it is incomplete. A
+raw trace taken later the same day shows the mainboard writing all four
+selectors, `LS3`, `LS2`, `LS1`, `LS0`, 1 to 2 ms apart; the transfers to
+`LS2` (`0x08`) and `LS0` (`0x06`) reach the emulator as a command byte
+and a STOP with no data. On the real keypad the same screen lights the
+down arrow (channel 8, `LS2`) and tab/pg dn (channel 1, `LS0`), so the
+mainboard does drive them. Earlier versions of this README said it
+never wrote those two registers; that was the emulator's blind spot, not
+the mainboard's behaviour.
+
+### How it reads
+
+Only `0x21` is read on a schedule. `0x22` and `0x60` were each read
+once during start-up and never again. The raw trace shows each 50 ms
+cycle as three transfers: command `0x00` to `0x21`, command `0x01` to
+`0x21` followed by a one-byte read, and command `0x00` to `0x22`. The
+reads that should follow the two `0x00` commands never reach the
+emulator (see below). Each read is logged as two `TX` bytes; the second
+is the driver prefetching, not a byte the mainboard takes.
+
+| Measure | Value |
+| --- | --- |
+| Registers polled | `0x00` and `0x01` of `0x21`, as one pair |
+| Rate | 40 register reads per second, steady |
+| Period | **50 ms** per pair |
+| Dropped log events over 150 s | 0 |
+
+### INT is not required
+
+The expanders' interrupt line has no channel left on a two-channel
+PCA9306, so D2 was left unconnected and `INT_WIRED` is `0`. The 50 ms
+poll is unconditional, so the mainboard sees a key purely from the input
+register. A 120 ms hold is comfortably longer than one poll period and
+was accepted every time.
+
+Wiring INT straight across would be a fault, not a shortcut: the line is
+pulled to 5 V on the mainboard side whenever it is released, and the
+UNO Q's D2 does not tolerate that.
+
+### The LED write confirms the cursor independently
+
+Channel 15 is the up arrow's lamp. On row 1 it is dark, because there is
+nowhere to go up; it lights as soon as the cursor leaves row 1.
+
+| Cursor | `LS3` (`0x60` reg `0x09`) | Channel 14 | Channel 15 |
+| --- | --- | --- | --- |
+| row 1 | `0x10` | on | off |
+| rows 2–4 | `0x50` | on | on |
+
+So the mainboard's own LED traffic reports where the cursor is, without
+the camera. That is the "list of keys you may press right now" channel
+the operator noticed on the real keypad, read from the other side.
+
+### The open fault: lost transfers after an even command byte
+
+Measured 2026-10-06 with `TRACE ON` and `HUSH`, which record every
+target callback while printing nothing
+(`claude_test/lamp_trace/trace_hush.log`, `trace_diag.log`). The
+selector writes on a screen change, as the emulator sees them:
+
+```mermaid
+sequenceDiagram
+    participant M as Mainboard
+    participant E as Emulator, 0x60
+    M->>E: 0x09 (LS3), 0x10
+    Note right of E: received
+    M->>E: 0x08 (LS2), data
+    Note right of E: command only, then STOP
+    M->>E: 0x07 (LS1), 0x00
+    Note right of E: received
+    M->>E: 0x06 (LS0), data
+    Note right of E: command only, then STOP
+```
+
+Across every log so far the rule has no exception: **after an even
+command byte the follow-up is lost, after an odd one it arrives.**
+
+| Command byte | Follow-up | Result |
+| --- | --- | --- |
+| `0x21` `0x00`, `0x22` `0x00` | read | lost |
+| `0x60` `0x08` (`LS2`), `0x06` (`LS0`) | data byte | lost |
+| `0x21` `0x01`, `0x22` `0x01`, `0x60` `0x01` | read | arrives |
+| `0x60` `0x03`, `0x07`, `0x09`; `0x22` `0x03`, `0x07` | data byte | arrives |
+
+What has been ruled out:
+
+- **The Zephyr driver.** The Arduino core ships Zephyr 4.4.2-rc1. Its
+  STM32 v2 target path handles RXNE before STOP, so a byte the hardware
+  received would still reach the callback. The missing bytes never got
+  that far.
+- **A bus error.** A target `error` callback was registered and never
+  fired.
+- **Monitor load.** The losses are the same with nothing printed.
+- **The second controller.** `claude_test/led_only` served `0x21` and
+  `0x60` from i2c2 alone, i2c3 unused and the A4/A5 jumpers pulled,
+  and lost the same transfers (`run3_0x21_0x60.log`).
+- **The LED map.** What did arrive lights one channel; no remapping
+  turns one channel into the three lamps the real panel shows.
+
+The leading hypothesis is ACK timing: when bit 0 of the command byte is
+0, the target's acknowledge that follows lands too late for the
+mainboard's clock through the PCA9306, the mainboard reads a NACK and
+ends the transfer. It is not proven. A logic analyser on the ACK bit, or
+a change to the target's `TIMINGR` data-hold setting, would settle it.
+Tracked in
+[#18](https://github.com/coport-uni/SpinCoaterAutomation_I2C/issues/18).
+
+Two side findings from the same runs:
+
+- **`Wire2` must be started.** With the A4/A5 jumpers in and i2c3 never
+  begun, its pins held the bus dead and the mainboard was heard by
+  nobody.
+- **A key hold must not depend on `loop()`.** A 120 ms `PRESS` was held
+  2.7 s while the log was busy. `pca9555_emu_gui` now releases the key
+  from a kernel timer; on the bench both arrows released at exactly
+  120 ms while `loop()` ran 2.7 s late (`claude_test/key_release/`).
 
 ## Next steps
 
@@ -408,12 +615,12 @@ and only three are needed. The high density connector stays untouched
 and `0x60` is kept — which matters, because the LED writes are the
 emulator's state feedback channel.
 
-> Still unmeasured: the tests above had `Wire` acting as **master**. In
-> the real emulator both controllers are targets and the mainboard is
-> the master. Nothing suggests a problem, but that arrangement itself
-> has not been run. A master does not acknowledge its own target
-> address, so measuring it needs an external master — which means the
-> level shifter and a second board.
+> Measured since, 2026-10-06: with the mainboard as master, both
+> controllers serve their addresses and the mainboard boots and moves
+> the cursor. They do lose every transfer that follows an even command
+> byte, and so does a single controller on its own, so the arrangement
+> above is not the cause. See
+> [The open fault](#the-open-fault-lost-transfers-after-an-even-command-byte).
 
 ### Open items
 
@@ -421,14 +628,19 @@ emulator's state feedback channel.
 | --- | --- |
 | Mainboard bus voltage | **measured: 5 V.** Level shifter mandatory |
 | Three addresses at once from one UNO Q | **resolved.** Target mode and two targets per controller both measured; two header controllers reach four addresses |
-| Mainboard polling order, period, init sequence | this is what stage 2 is for |
-| Minimum key hold time the mainboard accepts | to be searched from 100 ms in 50 ms steps |
-| Which `0x22` pins carry the two LEDs | to be settled by the stage 2 log |
+| Mainboard polling order, period, init sequence | **measured 2026-10-06.** Six init writes, then `0x21` input registers every 50 ms and nothing else |
+| Which `0x22` pins carry the two LEDs | **measured 2026-10-06.** Output port 1, bits 0 and 1, active low |
+| Whether INT must be driven | **no.** The 50 ms poll is unconditional, so D2 stays unconnected |
+| Minimum key hold time the mainboard accepts | 120 ms works every time; the floor has not been searched |
+| Transfers lost after an even command byte | **open, #18.** `LS0`/`LS2` data and the `0x21`/`0x22` port-0 reads never reach the emulator; the down arrow and tab/pg dn lamps stay dark |
+| Keys beyond the two arrows | served by `pca9555_emu_gui`. Port-1 keys work; one port-0 key (PGDN) did nothing, consistent with the lost port-0 read; EDIT and RUN never pressed |
 | A physical connector for X1 | not sourced |
 
-The button map and the LED map are each confirmed once. §7 of the
-specification asks for two independent reproductions, so a verification
-pass is still outstanding.
+The button map is confirmed once. §7 of the specification asks for two
+independent reproductions, so a verification pass is still outstanding
+for the buttons. The up arrow's lamp, channel 15, now has a second and
+independent confirmation: it tracks the Select Process cursor from the
+mainboard's own LED writes, with no keypad involved.
 
 ## References
 
