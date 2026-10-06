@@ -73,10 +73,11 @@ arrows, the lamp read-back and the timed key release work, but the
 emulator loses some of the mainboard's transfers (see
 [The open fault](#the-open-fault-lost-transfers-after-an-even-command-byte)),
 so the down arrow and tab/pg dn lamps stay dark and the eight keys on
-`0x21` port 0 most likely do not reach the mainboard. The cause has
-since been found in the target's `TIMINGR` data-hold setting and fixed
-in a probe; it is not yet in `pca9555_emu_gui`. Nothing yet drives the
-chuck.
+`0x21` port 0 most likely do not reach the mainboard. The cause was
+the targets' `TIMINGR` data-hold setting.
+`firmware/pca9555_emu_gui_mk2` fixes it: on the bench (2026-10-06) its
+lamps match the real keypad on Select Process and the port-0 key PGDN
+turns the page. Nothing yet drives the chuck.
 
 ## Hardware
 
@@ -273,6 +274,7 @@ firmware/
   pca9532_led/                LED control, including a walk mode for mapping
   pca9555_emu/                emulator, arrow keys only, with its Tk panel
   pca9555_emu_gui/            emulator, all 18 keys, with a lamp-gated panel
+  pca9555_emu_gui_mk2/        the same, with the data-hold fix; nothing lost
 claude_test/
   keypad_probe/               button mapping probe and its bench logs
   bus_check/                  reads SDA, SCL and INT levels without using Wire
@@ -293,6 +295,7 @@ claude_test/
 | `pca9555_poll` | button polling | not written; `claude_test/keypad_probe` covers it for now |
 | `pca9555_emu` | slave emulator: answers `0x21`, `0x22` and `0x60` for the mainboard, logs its traffic, injects the arrow keys | verified on hardware 2026-10-06 |
 | `pca9555_emu_gui` | the same emulator serving all 18 keys, with `LEDS`/`LED22` lamp lines, a timer-driven key release, and `TRACE`/`HUSH` bus diagnostics | **partly verified** 2026-10-06: arrows, lamp read-back, release timing. Port-0 keys and the LS0/LS2 lamps fail ([#18](https://github.com/coport-uni/SpinCoaterAutomation_I2C/issues/18)) |
+| `pca9555_emu_gui_mk2` | `pca9555_emu_gui` with the targets' `SDADEL` set to 4 on both controllers, so no transfer is lost | **verified** 2026-10-06: lamps match the real keypad, `DOWN`, `UP` and `PGDN` on camera. Other keys not pressed ([#22](https://github.com/coport-uni/SpinCoaterAutomation_I2C/issues/22)) |
 
 [firmware/pca9555_emu/](firmware/pca9555_emu/) holds the sketch and the
 Tk panel that drives it, `keypad_gui.py`, with a README giving the run
@@ -305,6 +308,9 @@ for it, at the same 80 columns the sketches use.
 variant. Its panel lays the keys out as the real overlay and enables a
 key only while its lamp is lit, with an "unlock all keys" switch for the
 lamps the emulator cannot yet see.
+[firmware/pca9555_emu_gui_mk2/](firmware/pca9555_emu_gui_mk2/) is the
+same sketch with the data-hold fix, and the one to use: with it the
+emulator sees every lamp.
 
 `pca9532_led` refuses `ALL on` on purpose, to avoid lighting all 16
 LEDs at once while the board is running off a 3.3 V bench supply.
@@ -498,10 +504,14 @@ which would have ended the transfer within a microsecond or two.
 Side measurement: one byte, command to data, takes 300 µs, so the
 mainboard clocks the bus at about 30 kHz, not 100 kHz.
 
-The fix still has to go into `pca9555_emu_gui`, and the lamps compared
-with the real keypad. Tracked in
-[#18](https://github.com/coport-uni/SpinCoaterAutomation_I2C/issues/18)
-and [#21](https://github.com/coport-uni/SpinCoaterAutomation_I2C/issues/21).
+The fix is in `firmware/pca9555_emu_gui_mk2` ([#22](https://github.com/coport-uni/SpinCoaterAutomation_I2C/issues/22)).
+On the bench it applied `SDADEL` 4 once on each controller and kept it.
+At power-on the mainboard wrote `LS2 = 0x01` and `LS0 = 0x04` with
+their data bytes, and the lamps read `LEDS .*......*.....*.` and
+`LED22 out=0xFC`: tab/pg dn, down arrow, INFO, EDIT MODE and RUN MODE,
+exactly the five lit on the real keypad. `PGDN`, a port-0 key, turned
+the Select Process list to programs 5 to 8. Logs and frames are in
+`claude_test/mk2_bench/`.
 
 Two side findings from the same runs:
 
@@ -664,8 +674,8 @@ emulator's state feedback channel.
 | Which `0x22` pins carry the two LEDs | **measured 2026-10-06.** Output port 1, bits 0 and 1, active low |
 | Whether INT must be driven | **no.** The 50 ms poll is unconditional, so D2 stays unconnected |
 | Minimum key hold time the mainboard accepts | 120 ms works every time; the floor has not been searched |
-| Transfers lost after an even command byte | **cause found, fix pending, #18/#21.** `SDADEL` 12 (the 400 kHz default) loses them; `SDADEL` 4 delivers all of them in `claude_test/ack_timing`. Not yet applied to `pca9555_emu_gui`, so its down arrow and tab/pg dn lamps still stay dark |
-| Keys beyond the two arrows | served by `pca9555_emu_gui`. Port-1 keys work; one port-0 key (PGDN) did nothing, consistent with the lost port-0 read; EDIT and RUN never pressed |
+| Transfers lost after an even command byte | **fixed in `pca9555_emu_gui_mk2`, #18/#21/#22.** `SDADEL` 12 (the 400 kHz default) loses them; `SDADEL` 4 delivers all of them. Why the 250 to 410 ns window fails is not explained. `pca9555_emu_gui` keeps the fault |
+| Keys beyond the two arrows | served by both panel sketches. With `pca9555_emu_gui_mk2` the port-0 key `PGDN` works; the other 15 keys, `EDIT` and `RUN` among them, have not been pressed |
 | A physical connector for X1 | not sourced |
 
 The button map is confirmed once. §7 of the specification asks for two

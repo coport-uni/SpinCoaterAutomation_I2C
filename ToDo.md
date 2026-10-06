@@ -777,7 +777,46 @@ Tasks:
 - [x] Bench, operator present, spin coater on, no key pressed: record
       the default `TIMINGR`, then sweep `SDADEL` 0..15 on i2c2 and
       at least one larger prescaler
-- [ ] If a setting stops the losses, power-cycle the spin coater with it
-      and check `LS2`/`LS0` arrive and the lamps match the real keypad
+- [x] If a setting stops the losses, power-cycle the spin coater with it
+      and check `LS2`/`LS0` arrive and the lamps match the real keypad (done with mk2, see §21)
 - [ ] Record the result in #18, `claude_test/README.md` and the top
       README; restore `pca9555_emu_gui` afterwards
+
+---
+
+## 21. pca9555_emu_gui_mk2: the panel emulator without lost transfers (2026-10-06)
+
+Part of GitHub issues #18 and #21, tracked in #22. The operator asked
+for a new folder, `firmware/pca9555_emu_gui_mk2`, holding a version of
+the panel emulator that loses nothing. `pca9555_emu_gui` stays as it is,
+the verified record of the first full-panel build.
+
+The fix is the one `claude_test/ack_timing` proved on the bench: set
+the `SDADEL` field of `TIMINGR` to 4 on both controllers (i2c2 and
+i2c3) after the targets are registered, because `i2c_target_register`
+recomputes `TIMINGR` from the 400 kHz devicetree setting. With `PRESC`
+4 at 160 MHz that is 125 ns, in the middle of the 0..7 band that lost
+nothing, and far from the failing 250..410 ns window.
+
+Tasks:
+
+- [x] Copy `pca9555_emu_gui.ino` to
+      `firmware/pca9555_emu_gui_mk2/pca9555_emu_gui_mk2.ino`
+  - [x] After registration, write `SDADEL` 4 with the peripheral off
+        and the bus idle, on both controllers
+  - [x] Do not guess: if `PRESC` is not the expected 4, print
+        a `WARN` line instead of applying a value tuned for 160 MHz
+  - [x] Print `TIMING` lines at boot and in `STATE`; check once a
+        second that the value is still in place and re-apply it with a
+        logged line if the driver has rewritten it
+  - [x] Update the header comment and the boot banner
+- [x] Copy `keypad_gui.py` and the README into the folder and update
+      what the fix changes (the lamp gate is no longer known to be
+      incomplete)
+- [x] Compile; `ruff` on the panel
+- [x] Bench, operator present, no key pressed at first: boot, check
+      `TIMING` lines, `LEDS` shows the down arrow and tab/pg dn lit on
+      Select Process like `KakaoTalk_20261006_142258731.jpg`
+- [x] With the operator's go-ahead, press `DOWN`, `UP` and one port-0
+      key (`PGDN`), and watch the LCD on the C920
+- [x] Update the READMEs, #18 and #21

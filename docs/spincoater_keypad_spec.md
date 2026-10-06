@@ -321,7 +321,7 @@ without its real output attached to the PR.
 | Minimum key hold time the mainboard accepts | unconfirmed | injection may be ignored | start at 100 ms and increase in 50 ms steps |
 | Mainboard boot-time init sequence | unconfirmed | failing to answer a configuration write raises an error | capture the log immediately after boot |
 | PCA9532 NAK handling | unconfirmed | no answer at the LED address may fault the mainboard | the emulator ACKs all three addresses |
-| Transfers lost after an even command byte | cause found 2026-10-06, #18/#21 | `LS0`/`LS2` data and the port-0 reads never reach the emulator, so two lamps stay dark and the port-0 keys likely do nothing | the target's `SDADEL` 12 (400 kHz default) falls in a failing window around 250 to 410 ns; `SDADEL` 4 delivers every transfer. Apply it in `pca9555_emu_gui` and compare the lamps with the real keypad |
+| Transfers lost after an even command byte | fixed 2026-10-06 in `pca9555_emu_gui_mk2`, #18/#21/#22 | `LS0`/`LS2` data and the port-0 reads never reach the emulator, so two lamps stay dark and the port-0 keys likely do nothing | the target's `SDADEL` 12 (400 kHz default) falls in a failing window around 250 to 410 ns; `SDADEL` 4 delivers every transfer. Applied in `pca9555_emu_gui_mk2`; its lamps match the real keypad and `PGDN` works |
 | Ellenby schematic | none | every pinout must be settled by measurement | one attempt at an enquiry email about 09-0128-00 |
 
 ## Sources
