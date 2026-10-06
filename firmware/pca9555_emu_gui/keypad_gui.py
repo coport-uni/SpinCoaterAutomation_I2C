@@ -11,12 +11,12 @@ mains switch are what stand between a key press and harm, exactly as
 they did when the real keypad was plugged in.
 
 **The gate is incomplete, and the switch below exists because of it.**
-On the Select Process screen the mainboard writes only ``LS1`` and
-``LS3`` of the PCA9532, never ``LS0`` or ``LS2``. Channels 0..3 and
-8..11 therefore stay dark whatever the state, and the down arrow is one
-of them, so a strictly lamp-gated panel cannot walk down a menu at all.
-Until it is known why those two registers are never written, "unlock
-all keys" turns the gate off and lets every key through.
+The mainboard writes all four PCA9532 selectors, but the data bytes for
+``LS0`` and ``LS2`` are lost before they reach the emulator (#18).
+Channels 0..3 and 8..11 therefore stay dark whatever the state, and the
+down arrow is one of them, so a strictly lamp-gated panel cannot walk
+down a menu at all. Until that is fixed, "unlock all keys" turns the
+gate off and lets every key through.
 
 Two lines of the emulator's output feed the lamps, and ``STATE`` prints
 both, so a window opened after the mainboard has set them still sees

@@ -4,7 +4,7 @@
     "product": "Laurell spin coater keypad",
     "captured": "2026-09-29",
     "method": "firmware/pca9532_led WALK at 4000 ms per channel, one LED lit at a time, read out visually against the predicted order",
-    "note": "The mainboard lights a button LED only while that button is a legal input in the current machine state, so a lit LED means that command is currently accepted. The converse does not hold: from a cold boot the mainboard writes only LS1 and LS3, leaving channels 0..3 and 8..11 off whatever the state, so a legal key may still be dark.",
+    "note": "The mainboard lights a button LED only while that button is a legal input in the current machine state, so a lit LED means that command is currently accepted. The emulator does not yet see every lamp: the mainboard writes all four selectors LS3, LS2, LS1, LS0 on a screen change, but the LS2 and LS0 data bytes are lost before they reach it (issue #18), so channels 0..3 and 8..11 read off on the emulator even where the real keypad lights them.",
     "led_count_total": 18,
     "chips": {
         "0x60": {
@@ -52,7 +52,7 @@
     ],
     "open_items": [
         "Channel 0 was confirmed on its own. Channels 1..15 were read out in one visual pass against a predicted order, which is weaker evidence than an independent readout. Channel 15 has since been confirmed a second way, from the mainboard side, by watching LS3 track the cursor.",
-        "From a cold boot the mainboard writes only LS1 and LS3, never LS0 or LS2, so channels 0..3 and 8..11 stayed at the power-on default, off, during the 2026-10-06 run. Whether it drives them on other screens is unknown. This is not a fault: the rule is that a lit lamp means the key is accepted, not that every accepted key is lit. The down arrow was legal and dark throughout.",
+        "Corrected 2026-10-06: an earlier entry said the mainboard writes only LS1 and LS3. A raw trace shows it writing LS3, LS2, LS1, LS0, 1 to 2 ms apart; the LS2 (0x08) and LS0 (0x06) transfers reach the emulator as a command byte and a STOP with no data. On the real keypad the same Select Process screen lights the down arrow (channel 8) and tab/pg dn (channel 1). Every transfer that follows an even command byte is lost, on any address, with one or two STM32 controllers; the leading hypothesis is ACK timing through the PCA9306. Open as issue #18.",
         "Nothing here is confirmed twice yet, against the two reproductions the spec requires."
     ]
 }

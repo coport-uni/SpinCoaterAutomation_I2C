@@ -3,13 +3,19 @@
 > **Run on the bench 2026-10-06**, operator present. What was actually
 > exercised: the three addresses registering, the mainboard booting
 > against it, `KEYS`, `HELP`, both rejection paths, and the two arrow
-> keys moving the cursor on camera.
+> keys moving the cursor on camera. Later the same day: the `LEDS` and
+> `LED22` lamp lines, the panel layout, and the timer-driven key
+> release (both arrows released at 120 ms with `loop()` 2.7 s late).
 >
 > **Not exercised: the other 16 keys.** `EDIT` and `RUN` matter most of
 > those, because they are the only ones on expander `0x22` and so the
 > only ones that use the second device in `press_dev`. The 14 remaining
 > `0x21` keys share their whole code path with the arrows. Nothing that
 > can turn the chuck has been pressed.
+>
+> **Known fault (#18):** every transfer after an even command byte is
+> lost, so `LS0`/`LS2` and the port-0 reads never arrive. See the
+> unlock-switch section below.
 
 Same structure as its sibling, with two differences:
 
@@ -29,7 +35,7 @@ while its lamp is lit. The spin coater decides, not this file.
 ```mermaid
 flowchart LR
     MB["<b>Mainboard</b><br/>decides what is legal"]
-    W["writes LS1, LS3<br/>and 0x22 port 1"]
+    W["writes LS0..LS3<br/>and 0x22 port 1"]
     EMU["<b>pca9555_emu_gui.ino</b><br/>decodes to LEDS and LED22 lines"]
     GUI["<b>keypad_gui.py</b><br/>lamp lit → key enabled"]
     OP["Operator<br/>can only click what is legal"]
@@ -54,25 +60,32 @@ they did when the real keypad was plugged in.
 
 The gate is incomplete, and the switch exists because of it.
 
-On the Select Process screen the mainboard writes only `LS1` and `LS3`
-of the PCA9532 — never `LS0` or `LS2`. Channels 0–3 and 8–11 therefore
-stay dark whatever the machine is doing, and **the down arrow is one of
-them**, so a strictly lamp-gated panel cannot walk down a menu at all.
+On a screen change the mainboard writes all four PCA9532 selectors,
+`LS3`, `LS2`, `LS1`, `LS0`. Only `LS3` and `LS1` arrive with their data
+byte; the transfers to `LS2` and `LS0` reach the emulator as a command
+byte and a STOP. Channels 0–3 and 8–11 therefore stay at the power-on
+default, off, and **the down arrow is one of them**, so a strictly
+lamp-gated panel cannot walk down a menu at all. The real keypad on the
+same Select Process screen lights the down arrow and tab/pg dn as well.
 
-Measured from a cold boot, 2026-10-06:
+What did arrive, from a cold boot, 2026-10-06:
 
 | Cursor row | `LS3` | Lit on the PCA9532 |
 | --- | --- | --- |
 | 1 | `0x10` | channel 14, INFO |
 | 2–4 | `0x50` | channels 14 and 15, INFO and up arrow |
 
-Everything else the mainboard leaves at the power-on default, which the
-[PCA9532 datasheet](https://www.nxp.com/docs/en/data-sheet/PCA9532.pdf)
-gives as `00` per channel, output high-impedance, LED off.
+The loss follows the command byte, not the register: every follow-up
+after an even command byte is lost, including the port-0 reads of
+`0x21` and `0x22`. See "The open fault" in the top-level README and
+[#18](https://github.com/coport-uni/SpinCoaterAutomation_I2C/issues/18).
 
-Until it is known why those two registers are never written, the switch
-turns the gate off and lets every key through. Leaving it on is the
-honest default; ticking it is a deliberate act.
+Until that is fixed, the switch turns the gate off and lets every key
+through. Leaving it on is the honest default; ticking it is a deliberate
+act. Note that the port-0 keys (`PGUP PGDN FWD RIGHT F2 F1 VACUUM
+SELECT`, and `EDIT`/`RUN` on `0x22`) probably do nothing yet, because
+the mainboard's port-0 read is one of the lost transfers; `PGDN` was
+pressed once and changed nothing on the LCD.
 
 ## Running it, in order
 
