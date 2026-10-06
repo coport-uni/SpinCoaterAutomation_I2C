@@ -71,7 +71,7 @@ keys only and is fully verified. `firmware/pca9555_emu_gui` serves all
 18 keys with a panel gated by the lamps; on the bench (2026-10-06) the
 arrows, the lamp read-back and the timed key release work, but the
 emulator loses some of the mainboard's transfers (see
-[The open fault](#the-open-fault-lost-transfers-after-an-even-command-byte)),
+[The fault](#the-fault-lost-transfers-after-an-even-command-byte-fixed)),
 so the down arrow and tab/pg dn lamps stay dark and the eight keys on
 `0x21` port 0 most likely do not reach the mainboard. The cause was
 the targets' `TIMINGR` data-hold setting.
@@ -425,7 +425,13 @@ So the mainboard's own LED traffic reports where the cursor is, without
 the camera. That is the "list of keys you may press right now" channel
 the operator noticed on the real keypad, read from the other side.
 
-### The open fault: lost transfers after an even command byte
+### The fault: lost transfers after an even command byte (fixed)
+
+> **Fixed 2026-10-06** in `firmware/pca9555_emu_gui_mk2`
+> ([#22](https://github.com/coport-uni/SpinCoaterAutomation_I2C/issues/22)):
+> the STM32 targets' data-hold delay, `SDADEL`, set to 4 instead of the
+> driver's 12. With it the lamps match the real keypad and the port-0
+> keys reach the mainboard. The record of how it was found follows.
 
 Measured 2026-10-06 with `TRACE ON` and `HUSH`, which record every
 target callback while printing nothing
@@ -661,8 +667,8 @@ emulator's state feedback channel.
 > controllers serve their addresses and the mainboard boots and moves
 > the cursor. They do lose every transfer that follows an even command
 > byte, and so does a single controller on its own, so the arrangement
-> above is not the cause. See
-> [The open fault](#the-open-fault-lost-transfers-after-an-even-command-byte).
+> above is not the cause. The cause was the targets' data-hold delay;
+> see [The fault](#the-fault-lost-transfers-after-an-even-command-byte-fixed).
 
 ### Open items
 

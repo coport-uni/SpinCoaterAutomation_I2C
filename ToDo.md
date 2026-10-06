@@ -820,3 +820,22 @@ Tasks:
 - [x] With the operator's go-ahead, press `DOWN`, `UP` and one port-0
       key (`PGDN`), and watch the LCD on the C920
 - [x] Update the READMEs, #18 and #21
+
+---
+
+## 22. Write the fix into the documents and merge into main (2026-10-06)
+
+The operator asked for the work since #15 and the fix of the lost
+transfers to go into the documents and into `main`. Tracked in #23.
+`claude_test/ack_timing` (#21) and `pca9555_emu_gui_mk2` (#22) were
+both run on the bench with the operator present; the keys not yet
+pressed are listed in the PR as NOT VERIFIED, and the operator ordered
+the merge.
+
+Tasks:
+
+- [x] Top README: the fault section is fixed by mk2; heading and links
+- [x] `firmware/pca9555_emu_gui/README.md`: point to mk2
+- [x] `docs/led_map.json`: the note and the open item
+- [ ] PR into `main` with the bench output, then merge
+- [ ] Delete the merged branches, local and remote

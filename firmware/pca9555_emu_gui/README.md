@@ -13,9 +13,11 @@
 > `0x21` keys share their whole code path with the arrows. Nothing that
 > can turn the chuck has been pressed.
 >
-> **Known fault (#18):** every transfer after an even command byte is
-> lost, so `LS0`/`LS2` and the port-0 reads never arrive. See the
-> unlock-switch section below.
+> **Known fault (#18), fixed in
+> [`../pca9555_emu_gui_mk2/`](../pca9555_emu_gui_mk2/README.md):**
+> every transfer after an even command byte is lost here, so
+> `LS0`/`LS2` and the port-0 reads never arrive. This sketch is kept
+> unchanged as the record of the first full-panel build; use mk2.
 
 Same structure as its sibling, with two differences:
 

@@ -4,7 +4,7 @@
     "product": "Laurell spin coater keypad",
     "captured": "2026-09-29",
     "method": "firmware/pca9532_led WALK at 4000 ms per channel, one LED lit at a time, read out visually against the predicted order",
-    "note": "The mainboard lights a button LED only while that button is a legal input in the current machine state, so a lit LED means that command is currently accepted. The emulator does not yet see every lamp: the mainboard writes all four selectors LS3, LS2, LS1, LS0 on a screen change, but the LS2 and LS0 data bytes are lost before they reach it (issue #18), so channels 0..3 and 8..11 read off on the emulator even where the real keypad lights them.",
+    "note": "The mainboard lights a button LED only while that button is a legal input in the current machine state, so a lit LED means that command is currently accepted. The mainboard writes all four selectors LS3, LS2, LS1, LS0 on a screen change. The first emulators lost the LS2 and LS0 data bytes (issue #18); pca9555_emu_gui_mk2 receives them (issue #22), and on Select Process its lamps match the real keypad.",
     "led_count_total": 18,
     "chips": {
         "0x60": {
@@ -52,7 +52,7 @@
     ],
     "open_items": [
         "Channel 0 was confirmed on its own. Channels 1..15 were read out in one visual pass against a predicted order, which is weaker evidence than an independent readout. Channel 15 has since been confirmed a second way, from the mainboard side, by watching LS3 track the cursor.",
-        "Corrected 2026-10-06: an earlier entry said the mainboard writes only LS1 and LS3. A raw trace shows it writing LS3, LS2, LS1, LS0, 1 to 2 ms apart; the LS2 (0x08) and LS0 (0x06) transfers reach the emulator as a command byte and a STOP with no data. On the real keypad the same Select Process screen lights the down arrow (channel 8) and tab/pg dn (channel 1). Every transfer that follows an even command byte is lost, on any address, with one or two STM32 controllers; the leading hypothesis is ACK timing through the PCA9306. Open as issue #18.",
+        "Corrected 2026-10-06: an earlier entry said the mainboard writes only LS1 and LS3. A raw trace shows it writing LS3, LS2, LS1, LS0, 1 to 2 ms apart; the LS2 (0x08) and LS0 (0x06) transfers reach the emulator as a command byte and a STOP with no data. On the real keypad the same Select Process screen lights the down arrow (channel 8) and tab/pg dn (channel 1). Every transfer that follows an even command byte is lost, on any address, with one or two STM32 controllers; the cause was the STM32 targets' data-hold delay, SDADEL 12 from the 400 kHz devicetree setting (issue #21). Fixed in pca9555_emu_gui_mk2 with SDADEL 4 (issue #22): LS2 = 0x01 and LS0 = 0x04 arrive at power-on, lighting channels 8 and 1.",
         "Nothing here is confirmed twice yet, against the two reproductions the spec requires."
     ]
 }
