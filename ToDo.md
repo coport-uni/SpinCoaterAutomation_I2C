@@ -209,10 +209,10 @@ Verification on the UNO Q, operator present, console output kept:
       `ARDUINO_ARCH_ZEPHYR` so the UNO Q path is untouched by it
 - [ ] Source a BSS138 style level shifter and wire SDA, SCL and INT
       through it, LV to 3.3 V and HV to the mainboard 5 V
-- [ ] Prove UNO Q slave mode with the A4/A5 to D20/D21 jumper self-test,
-      keypad disconnected to avoid the `0x21` address clash
-- [ ] Rewrite `firmware/pca9555_emu` for the UNO Q; the current draft is
-      raw AVR TWI and does not apply
+- [x] Prove UNO Q slave mode with the A4/A5 to D20/D21 jumper self-test,
+      keypad disconnected to avoid the `0x21` address clash (PR #7)
+- [x] Rewrite `firmware/pca9555_emu` for the UNO Q; the current draft is
+      raw AVR TWI and does not apply (PR #13)
 - [x] Register the GitHub issue via `gh issue create` (#4)
 
 `firmware/pca9555_emu` stays out of this commit: it has never run on any
@@ -239,10 +239,12 @@ jumper wires and no extra hardware.
 - [x] Establish where the third controller lives: `i2c4` maps to PF15
       and PF14, which are D42 and D40 on the high density connector,
       not the ordinary headers
-- [ ] Decide how to serve three addresses. Either break `i2c4` out of
+- [x] Decide how to serve three addresses. Either break `i2c4` out of
       the high density connector, or find out whether the Zephyr STM32
       driver can register two targets on one controller using OA1 and
       OA2, or drop `0x60` and check that the mainboard tolerates a NAK
+      — settled: OA1 plus OA2 on i2c2 carries `0x21` and `0x22`, i2c3
+      carries `0x60`, and `i2c4` stays unused (PR #8, #9, #13)
       there
 - [x] Register the GitHub issue via `gh issue create` (#4)
 
@@ -301,12 +303,19 @@ operator caught this.
       `SCAN 2` with `ADDR 0x21` and `ADDR 0x22`, `READ1 got=0x5A`,
       `READ2 got=0xB7`, both callback sets firing. Log in
       `claude_test/dual_target/unoq_dual_target_swap_verify.log`
-- [ ] Three or four addresses answering **at once** is still unmeasured.
+- [x] Three or four addresses answering **at once** is still unmeasured.
       A master does not acknowledge its own target address, so with only
       two controllers one of them must be the master and at most two
       targets are ever observable. This needs an external master, which
       means the level shifter and the R4 Minima, or a bus the Linux side
       can reach
+      — measured 2026-10-06. The external master turned out to be the
+      spin coater itself. With `firmware/pca9555_emu` on the UNO Q, the
+      mainboard addressed `0x21`, `0x22` and `0x60` on one bus and all
+      three answered in the same session: two targets on i2c2 via OA1
+      and OA2, one on i2c3. Evidence:
+      `claude_test/menu_cursor_check/runs/20261006_112031/monitor.log`
+      (PR #13)
 
 Both controllers are now known to hold a pair each, so the pair can sit
 on whichever one suits the wiring. Note the emulator needs three
@@ -429,7 +438,7 @@ Tasks:
 - [x] Record the polling period, register order and init writes in the
       README (stage 2 data), add the script and logs to
       `claude_test/README.md`
-- [ ] Commit only after both runs pass, push, open PR with the logs and
+- [x] Commit only after both runs pass, push, open PR with the logs and
       frames in Testing, update the issue
 
 ---
@@ -474,4 +483,4 @@ Tasks:
       firmware as well
 - [x] Check the GUI's maps and parsers against real log lines
 - [x] Record the EDIT MODE and RUN MODE lamp pins in `docs/led_map.json`
-- [ ] Open the PR with both runs' logs and frames in Testing
+- [x] Open the PR with both runs' logs and frames in Testing (#13)
