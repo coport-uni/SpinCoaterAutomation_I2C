@@ -1,0 +1,13 @@
+POLL ms=13075797 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=6883
+KEY PGDN down ms=13076411
+OK
+TX 0x21 reg=0x00 data=0xFD ms=13076428
+KEY PGDN up ms=13076550
+TX 0x21 reg=0x00 data=0xFF ms=13076581
+POLL ms=13076802 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=6883
+POLL ms=13077803 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=6883
+POLL ms=13078807 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=6883
+POLL ms=13079811 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=6883
+POLL ms=13080814 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=6883
+POLL ms=13081819 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=6883
+POLL ms=13082821 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=6883
