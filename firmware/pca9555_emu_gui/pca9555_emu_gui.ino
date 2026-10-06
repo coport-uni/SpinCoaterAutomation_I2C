@@ -51,6 +51,10 @@
  *   KEYS               List every key name
  *   STATE              Print the register files and the INT level
  *   LOG ON | LOG OFF   Log every read, not just the ones that changed
+ *   TRACE ON | OFF     Log every callback on 0x22 and 0x60, raw, and
+ *                      on 0x21 too while hushed
+ *   HUSH <s>           Send nothing on Monitor for s seconds, 1 to
+ *                      600, then print everything held meanwhile
  *   HELP               List the commands
  *
  * Key names: PGUP PGDN FWD RIGHT F2 F1 VACUUM SELECT DOWN REV LEFT
@@ -62,7 +66,15 @@
  *   READY
  *   RX 0x<nn> reg=0x<nn> data=0x<nn> ms=<n>    mainboard wrote
  *   TX 0x<nn> reg=0x<nn> data=0x<nn> ms=<n>    mainboard read
- *   LEDS <16 chars> ms=<n>              . off  * on  0 pwm0  1 pwm1
+ *   LEDS <16 chars> psc0=0x<nn> pwm0=0x<nn> psc1=0x<nn> pwm1=0x<nn>
+ *        ms=<n>                         . off  * on  0 pwm0  1 pwm1
+ *   LED22 out=0x<nn> cfg=0x<nn> ms=<n>  0x22 port 1, EDIT and RUN lamps
+ *   WREQ | RREQ | STOP 0x<nn> ms=<n>    TRACE ON only: write start,
+ *                                       read start, end of transfer
+ *   CMD 0x<nn> reg=0x<nn> data=0x<nn> ms=<n>   TRACE ON only: the
+ *                                       command byte as received
+ *   ERR 0x<nn> code=<n> ms=<n>          bus error or lost arbitration,
+ *                                       first target on that controller
  *   POLL ms=<n> rx21=<n> tx21=<n> ... drop=<n>
  *   KEY <name> <down|up> ms=<n>
  *   STATE ...
@@ -118,8 +130,10 @@
 #define PCA9555_INPUT_0 0x00
 #define PCA9555_INPUT_1 0x01
 #define PCA9555_OUTPUT_0 0x02
+#define PCA9555_OUTPUT_1 0x03
 #define PCA9555_POLARITY_0 0x04
 #define PCA9555_CONFIG_0 0x06
+#define PCA9555_CONFIG_1 0x07
 #define PCA9555_REG_MASK 0x07
 #define PCA9555_PORT_COUNT 2
 
@@ -130,6 +144,9 @@
 
 /** Key state with nothing pressed. The keys are active low. */
 #define KEYS_RELEASED 0xFF
+
+/** Port of 0x22 that carries the EDIT MODE and RUN MODE lamps. */
+#define LAMP22_PORT 1
 
 /* PCA9532 register map. Bit 4 of the command byte asks for
  * auto-increment, and the pointer then wraps at the last register. */
@@ -203,16 +220,29 @@ static const key_entry_t KEYS[KEY_COUNT] = {
 #define PRESS_HOLD_MIN_MS 20
 #define PRESS_HOLD_MAX_MS 1000
 
+/** Longest HUSH window, s, and the ms in one s. */
+#define HUSH_MAX_S 600
+#define MS_PER_S 1000
+
 /** Nothing is being pressed. */
 #define PRESS_NONE 0xFF
 
 /** Transaction log ring. The size must stay a power of two. */
-#define LOG_RING_SIZE 256
+#define LOG_RING_SIZE 8192
 #define LOG_RING_MASK (LOG_RING_SIZE - 1)
 
 /** Event kinds in the ring. */
 #define EV_READ 0
 #define EV_WRITE 1
+#define EV_CMD 2
+#define EV_WREQ 3
+#define EV_RREQ 4
+#define EV_STOP 5
+#define EV_ERR 6
+
+/* Lines drain_log() may print per pass of loop(), so that a full ring
+ * cannot keep the host commands waiting. */
+#define DRAIN_MAX_LINES 32
 
 /* The first reads after boot are logged in full so the mainboard's
  * polling order is recorded once; after that only changes are kept,
@@ -252,7 +282,7 @@ typedef struct {
     volatile uint8_t pointer;
     volatile bool auto_increment;
     volatile bool expect_pointer;
-    volatile bool ls_dirty;
+    volatile bool lamps_dirty;
 } pca9532_state_t;
 
 /**
@@ -272,6 +302,12 @@ static pca9555_state_t btn[2];
 /** The LED dimmer at 0x60. */
 static pca9532_state_t led;
 
+/* EDIT MODE and RUN MODE are lit from 0x22 port 1, not from the
+ * dimmer. The panel needs that port's state as well as the dimmer's, and
+ * it needs it on request: a panel opened after the mainboard's power-on
+ * write would otherwise never learn of it. */
+static volatile bool lamps22_dirty = false;
+
 /** Single producer in the callbacks, single consumer in loop(). */
 static volatile log_event_t log_ring[LOG_RING_SIZE];
 static volatile uint16_t log_head = 0;
@@ -279,6 +315,13 @@ static volatile uint16_t log_tail = 0;
 static volatile uint32_t log_dropped = 0;
 static volatile uint32_t log_reads_seen = 0;
 static volatile bool log_all_reads = false;
+
+/* The data-byte log above cannot show a command byte, or a transfer
+ * that carries none, which is what is needed to find the LS0 and LS2
+ * writes the mainboard is never seen making. The raw trace records
+ * every callback for 0x22 and 0x60, and for 0x21 as well while hushed;
+ * outside a HUSH window the 50 ms poll of 0x21 would flood the link. */
+static volatile bool trace_raw = false;
 
 /** Last byte handed back per device and register, for change detection. */
 static volatile uint8_t tx_last[DEV_COUNT][PCA9532_REG_COUNT];
@@ -290,12 +333,27 @@ static uint32_t rx_reported[DEV_COUNT];
 static uint32_t tx_reported[DEV_COUNT];
 static uint32_t poll_report_at = 0;
 
+/* While hushed, loop() sends nothing on Monitor and the ring holds
+ * every event until the window ends. A trace printed live keeps loop()
+ * so busy that host commands go unanswered and the mainboard is left
+ * retrying 0x22; this window records the bus with the link quiet. The
+ * flag is read from the I2C callbacks, hence volatile. */
+static volatile bool hushed = false;
+static uint32_t hush_until_ms = 0;
+
 /** The key press currently being held, or PRESS_NONE. */
 static uint8_t press_dev = PRESS_NONE;
 static uint8_t press_port = 0;
 static uint8_t press_bit = 0;
-static uint32_t press_end_ms = 0;
 static const char *press_name = "none";
+
+/* The release is timed by a kernel timer, not by loop(). A pass of
+ * loop() can take seconds while the log is busy, and a key held that
+ * much longer than asked is a hazard on START, FWD, REV or VACUUM. The
+ * timer restores the bit on time; loop() only reports it afterwards. */
+static struct k_timer release_timer;
+static volatile bool release_due = false;
+static volatile uint32_t release_ms = 0;
 
 /** Host command line assembly. */
 static char line_buf[LINE_BUF_SIZE];
@@ -344,7 +402,7 @@ static uint8_t dev_index(uint16_t addr) {
  * the update to make the claim atomic; the body is a handful of stores
  * and never waits on the bus.
  *
- * @param kind EV_READ or EV_WRITE.
+ * @param kind One of the EV_ event kinds.
  * @param addr Address that was addressed.
  * @param reg Register the byte belonged to.
  * @param data The byte itself.
@@ -366,6 +424,30 @@ static void log_push(uint8_t kind, uint8_t addr, uint8_t reg,
     log_ring[log_head].data = data;
     log_head = next;
     irq_unlock(key);
+}
+
+/**
+ * @brief Whether the raw trace covers this device right now.
+ * @param idx Device index.
+ * @return true when its callbacks should be recorded.
+ */
+static bool trace_wanted(uint8_t idx) {
+    return trace_raw && (idx != DEV_BTN_A || hushed);
+}
+
+/**
+ * @brief Record one raw callback while the trace is on.
+ * @param kind EV_CMD, EV_WREQ, EV_RREQ or EV_STOP.
+ * @param idx Device index; 0x21 is traced only while hushed.
+ * @param addr Address that was addressed.
+ * @param reg Register pointer after the event.
+ * @param data Byte received, for EV_CMD.
+ */
+static void trace_push(uint8_t kind, uint8_t idx, uint8_t addr,
+                       uint8_t reg, uint8_t data) {
+    if (trace_wanted(idx)) {
+        log_push(kind, addr, reg, data);
+    }
 }
 
 /**
@@ -513,6 +595,7 @@ static int on_write_requested(struct i2c_target_config *config) {
     } else {
         btn[idx].expect_pointer = true;
     }
+    trace_push(EV_WREQ, idx, (uint8_t)config->address, 0, 0);
     return 0;
 }
 
@@ -542,14 +625,15 @@ static int on_write_received(struct i2c_target_config *config,
             led.pointer =
                 (uint8_t)((val & PCA9532_REG_MASK) % PCA9532_REG_COUNT);
             led.expect_pointer = false;
+            trace_push(EV_CMD, idx, ADDR_LED, led.pointer, val);
             return 0;
         }
         reg = led.pointer;
         if (reg >= PCA9532_PSC0) {
+            /* The prescalers and duty cycles matter as much as the
+             * selectors: a channel on a 0 % PWM is dark. */
             led.reg[reg] = val;
-            if (reg >= PCA9532_LS0) {
-                led.ls_dirty = true;
-            }
+            led.lamps_dirty = true;
         }
         log_push(EV_WRITE, ADDR_LED, reg, val);
         rx_count[DEV_LED]++;
@@ -560,10 +644,16 @@ static int on_write_received(struct i2c_target_config *config,
     if (btn[idx].expect_pointer) {
         btn[idx].pointer = (uint8_t)(val & PCA9555_REG_MASK);
         btn[idx].expect_pointer = false;
+        trace_push(EV_CMD, idx, (uint8_t)config->address,
+                   btn[idx].pointer, val);
         return 0;
     }
     reg = btn[idx].pointer;
     pca9555_write(&btn[idx], reg, val);
+    if (idx == DEV_BTN_B
+        && (reg == PCA9555_OUTPUT_1 || reg == PCA9555_CONFIG_1)) {
+        lamps22_dirty = true;
+    }
     log_push(EV_WRITE, (uint8_t)config->address, reg, val);
     rx_count[idx]++;
     pointer_advance(idx);
@@ -595,6 +685,7 @@ static int serve_read(uint8_t idx, uint8_t addr, uint8_t *val) {
     /* Everything is logged for the first few hundred reads so the
      * polling order is on record, then only the bytes that changed. */
     if (log_all_reads || log_reads_seen < LOG_READ_BURST
+        || trace_wanted(idx)
         || tx_last[idx][reg] != data) {
         log_push(EV_READ, addr, reg, data);
     }
@@ -618,6 +709,7 @@ static int on_read_requested(struct i2c_target_config *config,
     if (idx == DEV_COUNT) {
         return -EIO;
     }
+    trace_push(EV_RREQ, idx, (uint8_t)config->address, 0, 0);
     return serve_read(idx, (uint8_t)config->address, val);
 }
 
@@ -653,7 +745,25 @@ static int on_stop(struct i2c_target_config *config) {
     } else {
         btn[idx].expect_pointer = true;
     }
+    trace_push(EV_STOP, idx, (uint8_t)config->address, 0, 0);
     return 0;
+}
+
+/**
+ * @brief Zephyr callback, the controller saw a bus error or lost
+ *        arbitration while acting as a target.
+ *
+ * Logged always, trace or not: a bus error mid-byte is the leading
+ * explanation for the LS0 and LS2 data bytes that never arrive. The
+ * driver reports every error on a controller through its first target,
+ * so an error on i2c2 shows as 0x21 whichever address was being served.
+ *
+ * @param config First target registered on the controller.
+ * @param error_code Zephyr's reason, 1 arbitration, 4 generic (BERR).
+ */
+static void on_error(struct i2c_target_config *config,
+                     enum i2c_error_reason error_code) {
+    log_push(EV_ERR, (uint8_t)config->address, 0, (uint8_t)error_code);
 }
 
 /**
@@ -674,6 +784,7 @@ static void register_target(uint8_t idx, const struct device *bus,
     target_cb[idx].write_received = on_write_received;
     target_cb[idx].read_processed = on_read_processed;
     target_cb[idx].stop = on_stop;
+    target_cb[idx].error = on_error;
 
     target_cfg[idx].address = addr;
     target_cfg[idx].callbacks = &target_cb[idx];
@@ -747,23 +858,61 @@ static void print_leds(void) {
             break;
         }
     }
+    Monitor.print(" psc0=");
+    print_hex8(led.reg[PCA9532_PSC0]);
+    Monitor.print(" pwm0=");
+    print_hex8(led.reg[PCA9532_PWM0]);
+    Monitor.print(" psc1=");
+    print_hex8(led.reg[PCA9532_PSC1]);
+    Monitor.print(" pwm1=");
+    print_hex8(led.reg[PCA9532_PWM1]);
     Monitor.print(" ms=");
     Monitor.println(millis());
 }
 
 /**
- * @brief Empty the log ring onto the Monitor link.
+ * @brief Print 0x22 port 1, which carries the EDIT and RUN lamps.
+ *
+ * Both the output latch and the configuration are printed, because a
+ * latch bit only reaches its lamp while the pin is configured as an
+ * output.
+ */
+static void print_lamps22(void) {
+    Monitor.print("LED22 out=");
+    print_hex8(btn[DEV_BTN_B].output[LAMP22_PORT]);
+    Monitor.print(" cfg=");
+    print_hex8(btn[DEV_BTN_B].config[LAMP22_PORT]);
+    Monitor.print(" ms=");
+    Monitor.println(millis());
+}
+
+/**
+ * @brief Move up to DRAIN_MAX_LINES events from the log ring onto the
+ *        Monitor link.
  */
 static void drain_log(void) {
-    while (log_tail != log_head) {
-        uint16_t i = log_tail;
+    static const char *const KIND_NAMES[] = {
+        "TX ", "RX ", "CMD ", "WREQ ", "RREQ ", "STOP ", "ERR ",
+    };
+    uint8_t lines = 0;
 
-        Monitor.print(log_ring[i].kind == EV_WRITE ? "RX " : "TX ");
+    while (log_tail != log_head && lines < DRAIN_MAX_LINES) {
+        uint16_t i = log_tail;
+        uint8_t kind = log_ring[i].kind;
+
+        lines++;
+        Monitor.print(KIND_NAMES[kind]);
         print_hex8(log_ring[i].addr);
-        Monitor.print(" reg=");
-        print_hex8(log_ring[i].reg);
-        Monitor.print(" data=");
-        print_hex8(log_ring[i].data);
+        /* Only the byte-carrying events have a register and data. */
+        if (kind == EV_READ || kind == EV_WRITE || kind == EV_CMD) {
+            Monitor.print(" reg=");
+            print_hex8(log_ring[i].reg);
+            Monitor.print(" data=");
+            print_hex8(log_ring[i].data);
+        } else if (kind == EV_ERR) {
+            Monitor.print(" code=");
+            Monitor.print(log_ring[i].data);
+        }
         Monitor.print(" ms=");
         Monitor.println(log_ring[i].ms);
 
@@ -822,42 +971,84 @@ static void report_poll(void) {
  * @param hold_ms How long to keep it down.
  */
 static void key_down(const key_entry_t *key, uint32_t hold_ms) {
-    btn[key->dev].keys[key->port] =
-        (uint8_t)(btn[key->dev].keys[key->port] & ~(1u << key->bit));
-    btn[key->dev].int_pending = true;
-    int_apply();
+    uint32_t down_ms = 0;
 
     press_dev = key->dev;
     press_port = key->port;
     press_bit = key->bit;
     press_name = key->name;
-    press_end_ms = millis() + hold_ms;
+    release_due = false;
+
+    btn[key->dev].keys[key->port] =
+        (uint8_t)(btn[key->dev].keys[key->port] & ~(1u << key->bit));
+    btn[key->dev].int_pending = true;
+    down_ms = millis();
+    k_timer_start(&release_timer, K_MSEC(hold_ms), K_NO_WAIT);
+    int_apply();
 
     Monitor.print("KEY ");
     Monitor.print(key->name);
     Monitor.print(" down ms=");
-    Monitor.println(millis());
+    Monitor.println(down_ms);
 }
 
 /**
- * @brief Release the key that is currently held, if any.
+ * @brief Restore the held key's bit, once.
+ *
+ * Runs from the release timer's expiry, in interrupt context, or from
+ * the RELEASE command. Interrupts are locked so the I2C callbacks never
+ * see a half-written port.
+ */
+static void release_bits(void) {
+    unsigned int key = irq_lock();
+
+    if (press_dev != PRESS_NONE && !release_due) {
+        btn[press_dev].keys[press_port] =
+            (uint8_t)(btn[press_dev].keys[press_port] | (1u << press_bit));
+        btn[press_dev].int_pending = true;
+        release_ms = millis();
+        release_due = true;
+    }
+    irq_unlock(key);
+}
+
+/**
+ * @brief Kernel timer expiry, the hold time is up.
+ * @param timer The release timer.
+ */
+static void on_release_timer(struct k_timer *timer) {
+    ARG_UNUSED(timer);
+    release_bits();
+}
+
+/**
+ * @brief Release the held key now, ahead of its timer.
  */
 static void key_up(void) {
-    if (press_dev == PRESS_NONE) {
+    k_timer_stop(&release_timer);
+    release_bits();
+}
+
+/**
+ * @brief Report a release that has already happened and free the slot.
+ *
+ * The bit was restored on time by release_bits(); this only drives INT
+ * and prints the line, so its own lateness costs nothing.
+ */
+static void report_release(void) {
+    if (!release_due) {
         return;
     }
-    btn[press_dev].keys[press_port] =
-        (uint8_t)(btn[press_dev].keys[press_port] | (1u << press_bit));
-    btn[press_dev].int_pending = true;
     int_apply();
 
     Monitor.print("KEY ");
     Monitor.print(press_name);
     Monitor.print(" up ms=");
-    Monitor.println(millis());
+    Monitor.println(release_ms);
 
-    press_dev = PRESS_NONE;
     press_name = "none";
+    release_due = false;
+    press_dev = PRESS_NONE;
 }
 
 /**
@@ -900,6 +1091,7 @@ static void print_state(void) {
     Monitor.print(" press=");
     Monitor.println(press_name);
     print_leds();
+    print_lamps22();
 }
 
 /**
@@ -916,6 +1108,29 @@ static void to_upper(char *text) {
 }
 
 /**
+ * @brief Set a flag from the ON or OFF that follows a command verb.
+ * @param flag Flag to set.
+ * @return true when the argument was ON or OFF.
+ */
+static bool parse_switch(volatile bool *flag) {
+    char *arg = strtok(NULL, " ");
+
+    if (arg == NULL) {
+        return false;
+    }
+    to_upper(arg);
+    if (strcmp(arg, "ON") == 0) {
+        *flag = true;
+        return true;
+    }
+    if (strcmp(arg, "OFF") == 0) {
+        *flag = false;
+        return true;
+    }
+    return false;
+}
+
+/**
  * @brief Parse and run one host command.
  *
  * Every key of the panel can be pressed. The emulator is a keypad, and
@@ -929,7 +1144,6 @@ static void to_upper(char *text) {
  */
 static bool handle_line(char *line) {
     char *verb = strtok(line, " ");
-    char *arg = NULL;
 
     if (verb == NULL) {
         return false;
@@ -946,24 +1160,30 @@ static bool handle_line(char *line) {
     }
     if (strcmp(verb, "HELP") == 0) {
         Monitor.println("HELP PRESS <key> [ms] / RELEASE / STATE "
-                        "/ KEYS / LOG ON|OFF");
+                        "/ KEYS / LOG ON|OFF / TRACE ON|OFF / HUSH <s>");
         return true;
     }
     if (strcmp(verb, "LOG") == 0) {
-        arg = strtok(NULL, " ");
-        if (arg == NULL) {
+        return parse_switch(&log_all_reads);
+    }
+    if (strcmp(verb, "TRACE") == 0) {
+        return parse_switch(&trace_raw);
+    }
+    if (strcmp(verb, "HUSH") == 0) {
+        char *secs = strtok(NULL, " ");
+        uint32_t hush_s = 0;
+
+        /* A held key would be released, and reported, mid-window. */
+        if (secs == NULL || press_dev != PRESS_NONE) {
             return false;
         }
-        to_upper(arg);
-        if (strcmp(arg, "ON") == 0) {
-            log_all_reads = true;
-            return true;
+        hush_s = (uint32_t)strtoul(secs, NULL, DECIMAL_BASE);
+        if (hush_s == 0 || hush_s > HUSH_MAX_S) {
+            return false;
         }
-        if (strcmp(arg, "OFF") == 0) {
-            log_all_reads = false;
-            return true;
-        }
-        return false;
+        hush_until_ms = millis() + hush_s * MS_PER_S;
+        hushed = true;
+        return true;
     }
     if (strcmp(verb, "PRESS") == 0) {
         char *name = strtok(NULL, " ");
@@ -1076,7 +1296,8 @@ static void reset_state(void) {
     led.pointer = PCA9532_INPUT_0;
     led.auto_increment = false;
     led.expect_pointer = true;
-    led.ls_dirty = false;
+    led.lamps_dirty = false;
+    lamps22_dirty = false;
 }
 
 void setup() {
@@ -1092,6 +1313,7 @@ void setup() {
 
     reset_state();
     int_apply();
+    k_timer_init(&release_timer, on_release_timer, NULL);
 
     /* Wire.begin() with no address only re-applies the pinctrl state;
      * it does not claim the bus as a master. The mainboard stays the
@@ -1109,14 +1331,24 @@ void setup() {
 }
 
 void loop() {
-    if (press_dev != PRESS_NONE
-        && (int32_t)(millis() - press_end_ms) >= 0) {
-        key_up();
+    report_release();
+
+    if (hushed) {
+        if ((int32_t)(millis() - hush_until_ms) < 0) {
+            return;
+        }
+        hushed = false;
+        Monitor.print("HUSH end ms=");
+        Monitor.println(millis());
     }
 
-    if (led.ls_dirty) {
-        led.ls_dirty = false;
+    if (led.lamps_dirty) {
+        led.lamps_dirty = false;
         print_leds();
+    }
+    if (lamps22_dirty) {
+        lamps22_dirty = false;
+        print_lamps22();
     }
 
     drain_log();

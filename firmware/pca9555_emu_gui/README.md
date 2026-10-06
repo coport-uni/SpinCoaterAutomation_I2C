@@ -30,7 +30,7 @@ while its lamp is lit. The spin coater decides, not this file.
 flowchart LR
     MB["<b>Mainboard</b><br/>decides what is legal"]
     W["writes LS1, LS3<br/>and 0x22 port 1"]
-    EMU["<b>pca9555_emu_gui.ino</b><br/>decodes to a LEDS line"]
+    EMU["<b>pca9555_emu_gui.ino</b><br/>decodes to LEDS and LED22 lines"]
     GUI["<b>keypad_gui.py</b><br/>lamp lit → key enabled"]
     OP["Operator<br/>can only click what is legal"]
 
@@ -107,11 +107,52 @@ RELEASE            release early
 KEYS               list every key name
 STATE              print the register files and the INT level
 LOG ON | LOG OFF   log every read, not only the ones that changed
+TRACE ON | OFF     log every callback on 0x22 and 0x60, raw
+HUSH <s>           print nothing for s seconds (1..600), then everything
 HELP               list the commands
 ```
 
+`TRACE ON` adds `WREQ`, `CMD`, `RREQ` and `STOP` lines for 0x22 and
+0x60, so the log shows each command byte and each transfer that carries
+no data, which the `RX`/`TX` lines alone cannot. It exists to find the
+`LS0` and `LS2` data bytes that never arrive (#18). It is off at boot.
+
+Use it with `HUSH`. Printed live, the trace keeps the sketch too busy to
+answer host commands, and the mainboard is left retrying 0x22. While
+hushed nothing is printed, 0x21 is traced as well, and the 8192-entry
+ring holds everything until the window ends:
+
+```
+TRACE ON
+HUSH 90        # then power the spin coater on
+```
+
+`ERR <addr> code=<n>` lines appear whether or not the trace is on. They
+report a bus error (`code=4`) or lost arbitration (`code=1`) seen by the
+controller, under the first address registered on it.
+
 Key names: `PGUP PGDN FWD RIGHT F2 F1 VACUUM SELECT DOWN REV LEFT PAUSE
 STOP START INFO UP EDIT RUN`.
+
+### Lamp lines
+
+The panel reads every lamp from two lines. The sketch prints each one
+when the mainboard writes a register behind it, and `STATE` prints both,
+so a panel opened after the mainboard has set its lamps still sees them.
+
+```
+LEDS ..............** psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=190459
+LED22 out=0xFC cfg=0x00 ms=190470
+```
+
+| Line | Source | Lamp is lit when |
+| --- | --- | --- |
+| `LEDS` | PCA9532 `LS0`..`LS3`, `PSC0`..`PWM1` | `*`, or `0`/`1` with that PWM's duty register non-zero |
+| `LED22` | 0x22 port 1, output and configuration | the bit is an output (`cfg` 0) driven low (`out` 0) |
+
+A blink output is on for `PWM/256` of its period, so a duty register of
+`0x00` keeps a channel dark. The mainboard writes `PWM0 = 0x00` at boot.
+EDIT MODE is bit 0 and RUN MODE bit 1 of `LED22`.
 
 ## Before the first run
 
