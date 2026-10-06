@@ -145,9 +145,8 @@ class Camera:
         ok, frame = self.cap.read()
         if not ok:
             raise SystemExit(f"camera index {self.index} returned no frame")
-        print(
-            f"camera {self.index}: {frame.shape[1]}x{frame.shape[0]} focus={self.focus}"
-        )
+        size = f"{frame.shape[1]}x{frame.shape[0]}"
+        print(f"camera {self.index}: {size} focus={self.focus}")
         return self
 
     def __exit__(self, *exc):
@@ -204,8 +203,10 @@ def calibrate(index):
 
 def run_dir():
     """Make a timestamped directory for this run's frames and log."""
-    now = datetime.datetime.now(datetime.timezone.utc).astimezone()
-    path = pathlib.Path(__file__).parent / "runs" / now.strftime("%Y%m%d_%H%M%S")
+    now = datetime.datetime.now(datetime.UTC).astimezone()
+    path = (
+        pathlib.Path(__file__).parent / "runs" / now.strftime("%Y%m%d_%H%M%S")
+    )
     (path / "frames").mkdir(parents=True, exist_ok=True)
     return path
 
@@ -273,7 +274,9 @@ def main():
         steps = [s.strip().upper() for s in args.steps.split(",") if s.strip()]
         bad = [s for s in steps if s not in ALLOWED_KEYS]
         if bad:
-            sys.exit(f"refusing to send {bad}; allowed: {', '.join(ALLOWED_KEYS)}")
+            sys.exit(
+                f"refusing to send {bad}; allowed: {', '.join(ALLOWED_KEYS)}"
+            )
 
     out = run_dir()
     print(f"run directory: {out}")

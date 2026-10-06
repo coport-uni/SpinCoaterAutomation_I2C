@@ -17,17 +17,20 @@ firmware lives in `firmware/`.
 | Script | Purpose | Status |
 | --- | --- | --- |
 | `menu_cursor_check/menu_cursor_check.py` | Bench harness for `firmware/pca9555_emu`. Holds one connection to the UNO Q's Monitor link through `adb shell nc 127.0.0.1 7500`, records every line the emulator prints, and grabs a Logitech C920 frame of the spin coater's LCD at each step. `--observe <s>` never writes to the MCU and is what runs while the operator powers the machine on; `--steps DOWN,DOWN,UP` injects keys and photographs the result; `--calibrate` sweeps the lens. Only `UP` and `DOWN` are accepted, and the firmware enforces the same list independently | 2026-10-06 **run on the bench**, both modes |
-| `keypad_gui/keypad_gui.py` | A virtual Laurell keypad on the PC. 18 buttons with their indicator lamps, lit from the LED traffic the mainboard is sending right now: `LEDS` lines for the PCA9532 channels and `RX 0x22 reg=0x03` writes for the EDIT MODE and RUN MODE lamps. Because the mainboard lights a key only while it is a legal input, the window is a live list of the commands the machine will accept. Only the arrows are clickable; every other key is drawn greyed and refused by the firmware as well | 2026-10-06, map and parser checked against real log lines; window opened against the live bus |
 
-Run both with the `laurell` environment's interpreter, which is the only
+The virtual keypad started here and has since **moved to
+`firmware/pca9555_emu/keypad_gui.py`**, beside the sketch it drives. It
+stopped being a probe once it became something the operator uses.
+
+Run it with the `laurell` environment's interpreter, which is the only
 Python on this machine with OpenCV and the project's tooling:
 
 ```sh
 PY="$USERPROFILE/miniconda3/envs/laurell/python.exe"
 
+"$PY" claude_test/menu_cursor_check/menu_cursor_check.py --calibrate
 "$PY" claude_test/menu_cursor_check/menu_cursor_check.py --observe 30
 "$PY" claude_test/menu_cursor_check/menu_cursor_check.py --steps DOWN,UP
-"$PY" claude_test/keypad_gui/keypad_gui.py
 ```
 
 Frames and logs land in `menu_cursor_check/runs/<timestamp>/`.

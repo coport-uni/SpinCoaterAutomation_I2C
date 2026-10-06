@@ -1,0 +1,24 @@
+# Host-side tooling only. The deliverable is Arduino C++ under
+# firmware/; this file exists so the Python that drives and watches it
+# follows the same 80 column rule as the sketches.
+
+[tool.ruff]
+line-length = 80
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "D", "DTZ", "RUF"]
+ignore = [
+    # D203 and D213 contradict D211 and D212, which are the ones kept.
+    "D203",
+    "D213",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# claude_test/ is the scratch area. CLAUDE.md section 8 waives the
+# docstring requirement there, but not the line length, which the
+# shared rule applies to all new code.
+"claude_test/**" = ["D"]

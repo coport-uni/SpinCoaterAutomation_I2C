@@ -278,6 +278,18 @@ claude_test/
 | `pca9555_poll` | button polling | not written; `claude_test/keypad_probe` covers it for now |
 | `pca9555_emu` | slave emulator: answers `0x21`, `0x22` and `0x60` for the mainboard, logs its traffic, injects the arrow keys | verified on hardware 2026-10-06 |
 
+[firmware/pca9555_emu/](firmware/pca9555_emu/) holds the sketch and the
+Tk panel that drives it, `keypad_gui.py`, with a README giving the run
+order and how the two fit together. The Python beside the sketch is host
+tooling, not firmware; it lives there because a panel is useless apart
+from the sketch it talks to. `pyproject.toml` holds the Ruff settings
+for it, at the same 80 columns the sketches use.
+
+A variant serving all 18 keys, with a panel that enables a key only
+while its lamp is lit, is being worked on. It is not here yet: §5.1
+keeps unrun firmware out of the repository until a bench run with the
+operator present has produced output to show.
+
 `pca9532_led` refuses `ALL on` on purpose, to avoid lighting all 16
 LEDs at once while the board is running off a 3.3 V bench supply.
 
@@ -532,7 +544,7 @@ emulator's state feedback channel.
 | Which `0x22` pins carry the two LEDs | **measured 2026-10-06.** Output port 1, bits 0 and 1, active low |
 | Whether INT must be driven | **no.** The 50 ms poll is unconditional, so D2 stays unconnected |
 | Minimum key hold time the mainboard accepts | 120 ms works every time; the floor has not been searched |
-| Why `LS0` and `LS2` are never written | the down arrow's lamp stayed dark while the key was legal. Either it is driven from elsewhere or that channel assignment needs re-checking |
+| Why `LS0` and `LS2` are never written | channels 0–3 and 8–11 stay at the PCA9532 default, off. Not a fault: a lit lamp means the key is accepted, but an accepted key need not be lit |
 | Keys beyond the two arrows | not implemented, and refused by name in firmware |
 | A physical connector for X1 | not sourced |
 

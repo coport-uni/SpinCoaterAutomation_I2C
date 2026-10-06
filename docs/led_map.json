@@ -4,7 +4,7 @@
     "product": "Laurell spin coater keypad",
     "captured": "2026-09-29",
     "method": "firmware/pca9532_led WALK at 4000 ms per channel, one LED lit at a time, read out visually against the predicted order",
-    "note": "The mainboard lights a button LED only while that button is a legal input in the current machine state, so the LS register values double as a live list of which commands are currently accepted.",
+    "note": "The mainboard lights a button LED only while that button is a legal input in the current machine state, so a lit LED means that command is currently accepted. The converse does not hold: from a cold boot the mainboard writes only LS1 and LS3, leaving channels 0..3 and 8..11 off whatever the state, so a legal key may still be dark.",
     "led_count_total": 18,
     "chips": {
         "0x60": {
@@ -52,7 +52,7 @@
     ],
     "open_items": [
         "Channel 0 was confirmed on its own. Channels 1..15 were read out in one visual pass against a predicted order, which is weaker evidence than an independent readout. Channel 15 has since been confirmed a second way, from the mainboard side, by watching LS3 track the cursor.",
-        "From a cold boot the mainboard writes only LS1 and LS3, never LS0 or LS2, so channels 0..3 and 8..11 were never lit during the 2026-10-06 run. Whether it drives them on other screens is unknown. The down arrow in particular stayed dark while it was plainly a legal key, so either it is lit from somewhere else or the channel assignment for it needs re-checking.",
+        "From a cold boot the mainboard writes only LS1 and LS3, never LS0 or LS2, so channels 0..3 and 8..11 stayed at the power-on default, off, during the 2026-10-06 run. Whether it drives them on other screens is unknown. This is not a fault: the rule is that a lit lamp means the key is accepted, not that every accepted key is lit. The down arrow was legal and dark throughout.",
         "Nothing here is confirmed twice yet, against the two reproductions the spec requires."
     ]
 }

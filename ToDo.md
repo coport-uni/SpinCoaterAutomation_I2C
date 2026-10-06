@@ -484,3 +484,53 @@ Tasks:
 - [x] Check the GUI's maps and parsers against real log lines
 - [x] Record the EDIT MODE and RUN MODE lamp pins in `docs/led_map.json`
 - [x] Open the PR with both runs' logs and frames in Testing (#13)
+
+---
+
+## 13. Serve the whole panel and move the GUI beside its sketch (2026-10-06)
+
+Three requests from the operator. Settle whether the lamps really mean
+what we think; make every key work, with the lit lamps deciding what may
+be pressed; and lay the files out so a sketch and the panel that drives
+it sit together.
+
+Findings that shape the work:
+
+- The operator's rule is "a lit lamp means that key is accepted", and it
+  holds exactly. An earlier note in this repository treated the converse
+  as though it had to hold too, and called the dark down arrow an
+  anomaly. That was an overstatement; the mainboard simply never writes
+  `LS0` or `LS2`, so those eight channels stay at their default.
+- The PCA9532 default for `LS0`..`LS3` is `0x00`, every channel off,
+  confirmed from the NXP datasheet, rev 4.1, table 10 and section 6.5.
+  The emulator's power-on values were right.
+- A strictly lamp-gated panel cannot walk down a menu, because the down
+  arrow's channel is in `LS2` and never lights. Hence the unlock switch.
+- `firmware/` was documented as holding Arduino sketches only. The
+  panels are host Python and now live there anyway, because a panel is
+  useless apart from the sketch it talks to.
+
+Tasks:
+
+- [x] Confirm the PCA9532 power-on default from the datasheet, not from
+      inference
+- [x] Correct the overstated LED note in `README.md` and
+      `docs/led_map.json`
+- [x] Add `pyproject.toml` with Ruff at 80 columns, which CommonClaude
+      §6 asks for and this repository never had
+- [x] Rewrite the panel to the MIT convention: 80 columns, Google style
+      docstrings, `lower_case` module constants
+- [x] Move the panel to `firmware/pca9555_emu/keypad_gui.py`
+- [x] Write `firmware/pca9555_emu_gui/` serving all 18 keys, with the
+      panel enabling a key only while its lamp is lit
+- [x] Document the run order and the Tk design with Mermaid diagrams in
+      each folder's README
+- [x] Re-check both panels' maps and parsers against real log lines
+- [ ] **BLOCKED**: compile `firmware/pca9555_emu_gui`. The permission
+      classifier refuses the `arduino-cli` call, reading the removal of
+      the two-key allowlist as weakening a safety control on a machine
+      with a spinning chuck. Not worked around. Needs the operator to
+      allow it or to run the compile themselves
+- [ ] Bench run for `pca9555_emu_gui`, operator present, chuck empty,
+      lid closed, mains switch in reach
+- [ ] Commit `firmware/pca9555_emu_gui/` only after that run
