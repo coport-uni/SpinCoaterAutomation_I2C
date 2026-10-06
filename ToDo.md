@@ -537,6 +537,22 @@ Tasks:
       lid closed, mains switch in reach
 - [ ] Commit `firmware/pca9555_emu_gui/` only after that run
 
+### Where the unverified work is parked
+
+`firmware/pca9555_emu_gui/` is committed on the **local branch
+`feat/full-panel-emulator`** (`1484e40`), which is not pushed and must
+not be, per §5.1 rule 2 and §12: an unverified branch may exist locally
+but may not be pushed, proposed or merged. `feat/pca9555-emu` therefore
+carries only firmware that has run on the bench.
+
+To pick the work back up:
+
+```sh
+git checkout feat/full-panel-emulator
+"/c/Program Files/Arduino IDE/resources/app/lib/backend/resources/arduino-cli.exe" \
+    compile --fqbn arduino:zephyr:unoq firmware/pca9555_emu_gui
+```
+
 ---
 
 ## 14. Let the panel see every lamp the mainboard has set (2026-10-06)
