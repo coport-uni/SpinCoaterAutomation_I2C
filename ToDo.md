@@ -536,3 +536,129 @@ Tasks:
 - [ ] Bench run for `pca9555_emu_gui`, operator present, chuck empty,
       lid closed, mains switch in reach
 - [ ] Commit `firmware/pca9555_emu_gui/` only after that run
+
+---
+
+## 14. Let the panel see every lamp the mainboard has set (2026-10-06)
+
+A review of how `pca9555_emu_gui` reads the lamps. Every LED write
+reaches the emulator: across the five `menu_cursor_check` runs each
+`POLL` line shows `drop=0`, and every `rx60` count equals the number of
+`RX 0x60` lines logged. The decoding of all 16 PCA9532 channels matches
+the datasheet. The gaps are in what reaches the panel:
+
+- EDIT MODE and RUN MODE are set only from `RX 0x22 reg=0x03` log
+  lines, and `STATE` does not report 0x22's output port. A panel opened
+  after the mainboard's power-on write shows both lamps dark and their
+  keys disabled until the next screen change.
+- A channel in `PWM0` or `PWM1` mode is drawn lit and its key enabled.
+  The mainboard writes `PWM0 = 0x00` at boot, a 0 % duty cycle, so such
+  a channel would be dark on the real panel. The `LEDS` line carries no
+  PWM registers, so the panel cannot tell. Not yet seen in a log.
+
+GitHub issue #16. Done on `feat/full-panel-emulator` itself, at the
+operator's choice, because the sketch exists only there. It ships in
+#14's PR.
+
+Tasks:
+
+- [x] Sketch: print an `LED22 out=0x.. cfg=0x..` line for 0x22 port 1
+      whenever the mainboard writes its output or configuration register,
+      and from `STATE`
+- [x] Sketch: append `psc0 pwm0 psc1 pwm1` to the `LEDS` line, and print
+      it when those registers are written as well as `LS0`..`LS3`
+- [x] Panel: drive EDIT MODE and RUN MODE from `LED22`, lit only when
+      the bit is an output and driven low
+- [x] Panel: draw a PWM channel dark, and keep its key disabled, while
+      that PWM's duty register is `0x00`
+- [x] Update the output line description in the sketch header and both
+      READMEs that describe the protocol
+- [x] `ruff check` and `ruff format --check` on the panel
+- [x] Compile `firmware/pca9555_emu_gui` (blocked in §13 by the
+      permission classifier; may need the operator to run it)
+- [ ] Bench run, operator present: boot the spin coater first, then
+      open the panel, and confirm EDIT MODE and RUN MODE light from the
+      `STATE` reply alone. No key is pressed in this run
+- [ ] Commit only after that run; it ships in #14's PR
+
+---
+
+## 15. Lay the panel out as the real overlay (2026-10-06)
+
+GitHub issue #17.
+
+The operator asked for the GUI's keys to sit where they sit on the real
+overlay, `docs/ButtonLayout.jpg`, instead of the grouped grid used now.
+
+Tasks:
+
+- [x] Rearrange `panel_layout` in `firmware/pca9555_emu_gui/keypad_gui.py`
+      to the overlay: SELECT, RUN, EDIT, INFO down the left; VACUUM, F1,
+      F2 across the top; the arrow cross in the middle; tab/pg up and
+      tab/pg dn on the right; START STOP PAUSE REV FWD along the bottom
+- [x] `ruff check` and `ruff format --check`
+- [ ] Operator opens the panel and compares it with the overlay. No key
+      is pressed
+
+---
+
+## 16. Find the LS0 and LS2 writes the emulator never sees (2026-10-06)
+
+GitHub issue #18.
+
+On the Select Process screen, cursor on row 1, the real keypad lights
+five lamps: EDIT MODE, RUN MODE, INFO, down arrow and tab/pg dn
+(photo `claude_test/KakaoTalk_20261006_142258731.jpg`, matched to the
+overlay). By `docs/led_map.json` the down arrow is PCA9532 channel 8
+(`LS2`) and tab/pg dn is channel 1 (`LS0`).
+
+With the emulator in place, the mainboard is seen writing only
+`LS3 = 0x10` and `LS1 = 0x00` per screen change, so a single PCA9532
+channel is on. No remapping of channels can make one channel light
+three lamps. Either the mainboard writes `LS0` and `LS2` to the real
+chip and the emulator does not record it, or it behaves differently
+with the real board present. The real board's idle inputs, `0xFF` on
+both ports of 0x22 and 0x60, match what the emulator serves, so the
+second is not explained by a board-ID read.
+
+One pattern stands out. Every register the mainboard has been logged
+addressing is odd: on 0x60 `0x01`, `0x03`, `0x07`, `0x09`; on 0x22
+`0x03`, `0x07`; and every 0x21 and 0x22 read starts at `0x01`. `LS0`
+(`0x06`), `LS2` (`0x08`), `PSC0` (`0x02`) never appear. The current log
+records data bytes only, not the command byte or a transaction that
+carries no data, so it cannot tell the cases apart.
+
+Tasks:
+
+- [x] Add a raw trace to the emulator: every callback for 0x60 and 0x22
+      (write requested, each received byte including the command byte,
+      read requested, read processed, stop), with a timestamp
+- [x] Bench run, operator present: spin coater off, upload, spin coater
+      on, record from the first byte to the Select Process screen. No
+      key is pressed
+- [ ] Decide from the trace whether `LS0` and `LS2` transactions arrive
+      and how they are lost, then fix the emulator
+- [ ] Confirm against the photo: the panel shows the same five lamps
+
+---
+
+## 17. Release an injected key on time, whatever loop() is doing (2026-10-06)
+
+GitHub issue #19.
+
+`PRESS PGDN 120` with `LOG ON` held the key for 2.7 s
+(`claude_test/lamp_trace/press_pgdn.log`). `key_up()` runs only at the
+top of `loop()`, and with every read being logged one pass of `loop()`
+took that long. The hold time a host asks for is therefore a lower
+bound, not a limit. On PGDN it was harmless; on START, FWD, REV or
+VACUUM a press held seconds longer than asked is a safety defect.
+
+Tasks:
+
+- [x] Release the key from a Zephyr `k_timer` expiry, so the hold ends
+      on time independently of `loop()` and of the Monitor link
+- [x] Refuse `PRESS` while `LOG ON` or `TRACE ON` until the release is
+      timer-driven, or drop that guard once it is
+- [x] Compile, then a bench run with the operator present: `PRESS UP
+      120` and `PRESS DOWN 120` with `LOG ON`, and check the `KEY ...
+      down`/`up` stamps are 120 ms apart
