@@ -18,10 +18,12 @@ of them, so a strictly lamp-gated panel cannot walk down a menu at all.
 Until it is known why those two registers are never written, "unlock
 all keys" turns the gate off and lets every key through.
 
-Two lines of the emulator's output feed the lamps::
+Two lines of the emulator's output feed the lamps, and ``STATE`` prints
+both, so a window opened after the mainboard has set them still sees
+them::
 
-    LEDS <16 chars>              PCA9532 channels 0..15, from 0x60
-    RX 0x22 reg=0x03 data=0x..   EDIT MODE and RUN MODE, bits 0 and 1
+    LEDS <16 chars> psc0=.. pwm0=.. psc1=.. pwm1=..   from 0x60
+    LED22 out=0x.. cfg=0x..          EDIT MODE and RUN MODE, bits 0 and 1
 
 Pair this with ``firmware/pca9555_emu_gui/pca9555_emu_gui.ino``, which
 serves all 18 keys. The arrows-only ``firmware/pca9555_emu`` will answer
@@ -75,31 +77,39 @@ press_hold_max_ms = 1000
 # The two lamps that are not on the PCA9532. Identified from the stage 2
 # log: the mainboard declares 0x22 port 1 all outputs, then drives bits
 # 0 and 1 low, active low like every other lamp here.
-led_0x22_reg = 0x03
 led_0x22_bits = {"EDIT_MODE": 0, "RUN_MODE": 1}
 
-# Panel layout, as (button name, row, column). It follows the grouping
-# of docs/ButtonLayout.jpg rather than its exact geometry.
+# A PCA9532 blink output is on for PWM/256 of its period, so a duty
+# register of zero keeps every channel that selects it dark. The
+# mainboard writes PWM0 = 0x00 at boot.
+pwm_duty_off = 0x00
+
+# Panel layout, as (button name, row, column), placed where each key
+# sits on the real overlay, docs/ButtonLayout.jpg: the mode keys down
+# the left, the arrow cross in the middle, the page keys on the right,
+# and the motion keys along the bottom, set apart by an empty row.
 panel_layout = (
     ("SELECT_PROCESS", 0, 0),
-    ("INFO", 0, 1),
-    ("EDIT_MODE", 0, 3),
-    ("RUN_MODE", 0, 4),
-    ("F1", 1, 0),
-    ("F2", 1, 1),
-    ("VACUUM", 1, 3),
-    ("PAUSE", 1, 4),
-    ("TAB_LEFT_PG_UP", 2, 0),
-    ("TAB_RIGHT_PG_DN", 2, 1),
-    ("START", 2, 3),
-    ("STOP", 2, 4),
-    ("ARROW_UP", 3, 1),
-    ("FWD", 3, 3),
-    ("REV", 3, 4),
-    ("ARROW_LEFT", 4, 0),
-    ("ARROW_DOWN", 4, 1),
-    ("ARROW_RIGHT", 4, 2),
+    ("VACUUM", 0, 2),
+    ("F1", 0, 3),
+    ("F2", 0, 4),
+    ("RUN_MODE", 1, 0),
+    ("EDIT_MODE", 2, 0),
+    ("ARROW_UP", 2, 2),
+    ("TAB_LEFT_PG_UP", 2, 4),
+    ("INFO", 3, 0),
+    ("ARROW_LEFT", 3, 1),
+    ("ARROW_DOWN", 3, 2),
+    ("ARROW_RIGHT", 3, 3),
+    ("TAB_RIGHT_PG_DN", 3, 4),
+    ("START", 5, 0),
+    ("STOP", 5, 1),
+    ("PAUSE", 5, 2),
+    ("REV", 5, 3),
+    ("FWD", 5, 4),
 )
+panel_gap_row = 4
+panel_gap_px = 18
 
 colours = {
     "bg": "#1b1f24",
@@ -114,8 +124,11 @@ colours = {
     "key_edge": "#4a5361",
 }
 
-led_pattern = re.compile(r"^LEDS ([.*01]{16})")
-rx_0x22_pattern = re.compile(r"^RX 0x22 reg=0x(\w{2}) data=0x(\w{2})")
+led_pattern = re.compile(
+    r"^LEDS ([.*01]{16}) psc0=0x\w{2} pwm0=0x(\w{2})"
+    r" psc1=0x\w{2} pwm1=0x(\w{2})"
+)
+led_0x22_pattern = re.compile(r"^LED22 out=0x(\w{2}) cfg=0x(\w{2})")
 
 log_height_lines = 14
 drain_period_ms = 60
@@ -242,6 +255,8 @@ class Keypad(tk.Tk):
 
         for name, row, col in panel_layout:
             self._build_key(panel, name, row, col, label_font)
+        # An empty grid row has no height of its own.
+        panel.grid_rowconfigure(panel_gap_row, minsize=panel_gap_px)
 
         self._build_controls(label_font)
 
@@ -398,32 +413,36 @@ class Keypad(tk.Tk):
         canvas.itemconfigure(dot, fill=colours[state])
         self.lit[name] = state != "lamp_off"
 
-    def _apply_leds(self, pattern: str) -> None:
+    def _apply_leds(self, pattern: str, pwm0: int, pwm1: int) -> None:
         """Light the PCA9532 lamps from one LEDS line.
 
         Args:
             pattern: The 16 character field of a ``LEDS`` line.
+            pwm0: The PWM0 duty register.
+            pwm1: The PWM1 duty register.
         """
+        duty = {"0": pwm0, "1": pwm1}
         for name, channel in self.channels.items():
             mark = pattern[channel]
             if mark == "*":
                 self._set_lamp(name, "lamp_on")
-            elif mark in "01":
+            elif mark in duty and duty[mark] != pwm_duty_off:
                 self._set_lamp(name, "lamp_pwm")
             else:
                 self._set_lamp(name, "lamp_off")
 
-    def _apply_0x22(self, reg: int, value: int) -> None:
-        """Light EDIT MODE and RUN MODE from an 0x22 output write.
+    def _apply_0x22(self, output: int, config: int) -> None:
+        """Light EDIT MODE and RUN MODE from 0x22 port 1.
 
         Args:
-            reg: Register the mainboard wrote.
-            value: Byte it wrote. The lamps are active low.
+            output: The port's output latch. The lamps are active low.
+            config: The port's configuration. A bit set to 1 makes the
+                pin an input, which leaves its lamp undriven.
         """
-        if reg != led_0x22_reg:
-            return
         for name, bit in led_0x22_bits.items():
-            is_lit = (value >> bit) & 1 == 0
+            is_output = (config >> bit) & 1 == 0
+            is_low = (output >> bit) & 1 == 0
+            is_lit = is_output and is_low
             self._set_lamp(name, "lamp_on" if is_lit else "lamp_off")
 
     def _drain(self) -> None:
@@ -449,11 +468,15 @@ class Keypad(tk.Tk):
         """
         match = led_pattern.match(line)
         if match:
-            self._apply_leds(match.group(1))
+            self._apply_leds(
+                match.group(1),
+                int(match.group(2), 16),
+                int(match.group(3), 16),
+            )
             self._write_log(line)
             return
 
-        match = rx_0x22_pattern.match(line)
+        match = led_0x22_pattern.match(line)
         if match:
             self._apply_0x22(int(match.group(1), 16), int(match.group(2), 16))
             self._write_log(line)
