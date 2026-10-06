@@ -16,7 +16,9 @@
         },
         "0x22": {
             "part": "PCA9555D",
-            "role": "the remaining 2 LEDs, exact pins not yet identified"
+            "role": "the remaining 2 LEDs, on output port 1",
+            "led_pins": "0x03 output port 1 bit 0 EDIT MODE, bit 1 RUN MODE, active low",
+            "config": "the mainboard writes 0x07 = 0x00 at power on, making all of port 1 outputs"
         }
     },
     "leds": [
@@ -38,17 +40,19 @@
         {"channel": 15, "name": "ARROW_UP", "label": "up arrow", "button_addr": "0x21", "button_reg": "0x01", "button_bit": 7, "confirmed": "walk"}
     ],
     "leds_not_on_pca9532": [
-        {"name": "EDIT_MODE", "label": "EDIT MODE", "button_addr": "0x22", "button_reg": "0x00", "button_bit": 0, "led_location": "unknown, expected on 0x22"},
-        {"name": "RUN_MODE", "label": "RUN MODE", "button_addr": "0x22", "button_reg": "0x00", "button_bit": 1, "led_location": "unknown, expected on 0x22"}
+        {"name": "EDIT_MODE", "label": "EDIT MODE", "button_addr": "0x22", "button_reg": "0x00", "button_bit": 0, "led_addr": "0x22", "led_reg": "0x03", "led_bit": 0, "active_level": "low", "confirmed": "mainboard log 2026-10-06"},
+        {"name": "RUN_MODE", "label": "RUN MODE", "button_addr": "0x22", "button_reg": "0x00", "button_bit": 1, "led_addr": "0x22", "led_reg": "0x03", "led_bit": 1, "active_level": "low", "confirmed": "mainboard log 2026-10-06"}
     ],
     "findings": [
         "PCA9532 channel n drives the LED of the button at 0x21 bit n, counting input port 0 bits 0..7 as channels 0..7 and input port 1 bits 0..7 as channels 8..15. Button and LED share the same index.",
         "Header X1 carries only VDD, GND, SDA, SCL and INT, so every LED must be driven over I2C. All 16 pins of 0x21 are buttons and the PCA9532 covers 16 LEDs, therefore the EDIT MODE and RUN MODE LEDs can only be on 0x22.",
-        "0x22 has 14 pins of unknown function. Two of them are those LEDs; some of the rest may be outputs of unused MAX6818 debouncer channels."
+        "0x22 has 14 pins of unknown function. Two of them are those LEDs; some of the rest may be outputs of unused MAX6818 debouncer channels.",
+        "Settled from the mainboard side on 2026-10-06. At power on the mainboard writes 0x22 register 0x07 = 0x00, declaring all of port 1 as outputs, then writes register 0x03 = 0xFC, pulling bits 0 and 1 low. Those two bits are the EDIT MODE and RUN MODE lamps, active low. Evidence: claude_test/menu_cursor_check/runs/20261006_112031/monitor.log",
+        "Channel 15 is confirmed a second way, without the keypad. The mainboard writes LS3 = 0x10 while the Select Process cursor is on row 1 and 0x50 while it is on rows 2 to 4; the only bit that changes is channel 15, which is the up arrow, and the up arrow is exactly the key that is illegal on row 1. The lamp traffic therefore reports cursor position on its own."
     ],
     "open_items": [
-        "Channel 0 was confirmed on its own. Channels 1..15 were read out in one visual pass against a predicted order, which is weaker evidence than an independent readout. A blind spot check is in progress.",
-        "The two remaining LED pins on 0x22 are not identified. Driving an unknown 0x22 pin as an output risks contention with a MAX6818 push-pull output, so this is not attempted without a decision on method.",
+        "Channel 0 was confirmed on its own. Channels 1..15 were read out in one visual pass against a predicted order, which is weaker evidence than an independent readout. Channel 15 has since been confirmed a second way, from the mainboard side, by watching LS3 track the cursor.",
+        "From a cold boot the mainboard writes only LS1 and LS3, never LS0 or LS2, so channels 0..3 and 8..11 were never lit during the 2026-10-06 run. Whether it drives them on other screens is unknown. The down arrow in particular stayed dark while it was plainly a legal key, so either it is lit from somewhere else or the channel assignment for it needs re-checking.",
         "Nothing here is confirmed twice yet, against the two reproductions the spec requires."
     ]
 }

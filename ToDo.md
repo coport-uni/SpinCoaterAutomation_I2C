@@ -359,3 +359,119 @@ log, or measurement it describes. The submodule at
 `external/CommonClaude` was empty in this working copy and was restored
 with `git submodule update --init --recursive`; the recorded commit is
 unchanged, so nothing is staged for it.
+
+---
+
+## 11. Move the menu cursor through the emulator, check on camera (2026-10-06)
+
+The operator has wired the UNO Q to the mainboard through a SparkFun
+PCA9306 translator (D20 SDA, D21 SCL, jumpers A4 to D20 and A5 to D21)
+and unplugged the keypad board. A Logitech C920 watches the LCD.
+Goal: inject the down and up arrow keys over I2C, move the "Select
+Process" cursor 1 -> 2 -> 3 -> 4 -> 3 -> 2 -> 1, and confirm every step
+on the camera. That proves the emulator talks to the mainboard.
+
+Findings that shape the design:
+
+- Arduino `Wire` calls `onReceive` only at STOP, so for a register
+  write followed by a repeated-start read, `onRequest` fires before the
+  register pointer arrives. All three addresses are therefore served by
+  raw Zephyr `i2c_target_callbacks`, as `claude_test/dual_target` did
+  for its second address.
+- The sketch last flashed may be `claude_test/dual_target`, which
+  answers `0x21` with `0x5A` (START, up, down and left read as pressed)
+  and drives the bus as a master every 3 s. Which sketch is on the MCU
+  cannot be read back, so the first flash happens with the spin coater
+  powered off.
+- With the keypad unplugged there is no physical STOP key. The mains
+  switch is the stop for every run.
+- The PCA9306 carries two channels and both are taken by SDA and SCL,
+  so INT has none left. Wiring it straight across would put the
+  mainboard's 5 V pull-up on D2 whenever the line is released, which
+  the UNO Q does not tolerate, so INT stays unconnected and `INT_WIRED`
+  is 0. Whether the mainboard polls without it is what bench run 1
+  answers.
+- The keypad board carried the SDA pull-up and the mainboard carried
+  SCL's, which is what `SCL hiz=0 pup=1` showed on the R4 in #3. With
+  the keypad gone the 5 V side needs the PCA9306 breakout's own
+  pull-ups enabled on both sides; the part is a pass gate and drives
+  neither side high by itself.
+- Smart App Control is enforced on this PC
+  (`VerifiedAndReputablePolicyState = 1`) and blocks the unsigned
+  `cc1.exe` of the Zephyr toolchain, so `arduino-cli compile` dies with
+  `CreateProcess: No such file or directory`. The compile step is
+  blocked until that is resolved.
+
+Tasks:
+
+- [x] Register the GitHub issue via `gh issue create` (#12)
+- [x] Cut `feat/pca9555-emu` from `main`
+- [x] Write `firmware/pca9555_emu`: `0x21` and `0x22` on i2c2 (OA1 and
+      OA2), `0x60` on i2c3; PCA9555 register file with power-on defaults
+      (input from pin state XOR polarity, pointer auto-toggle within a
+      register pair); PCA9532 register file that accepts and stores
+      writes; INT on D2 driven as open drain; ISR-safe ring buffer for
+      an `RX addr reg data ms` / `TX addr reg data ms` log on `Monitor`
+- [x] Key injection by allowlist only: `PRESS UP <ms>` and
+      `PRESS DOWN <ms>` (`0x21` port 1 bits 7 and 0). Every other key,
+      START included, is rejected with `ERR`. Default hold 100 ms
+- [x] Host script `claude_test/menu_cursor_check` (Python, laurell env):
+      sends the commands over `adb shell nc 127.0.0.1 7500`, grabs a
+      C920 frame after each press, saves the frames and the log
+- [x] Compile for `arduino:zephyr:unoq` — 93,208 bytes (11%)
+- [x] Bench run 1, operator present, spin coater **off**: flash the
+      emulator, start the log, operator powers the spin coater on.
+      Keep the boot sequence and 30 s of polling; confirm on camera
+      the LCD comes up normally and no key is seen as pressed
+- [x] Bench run 2, operator present, chuck empty, lid closed, mains
+      switch in reach: DOWN x3 then UP x3, one frame per step, confirm
+      the cursor position in each frame
+- [x] Record the polling period, register order and init writes in the
+      README (stage 2 data), add the script and logs to
+      `claude_test/README.md`
+- [ ] Commit only after both runs pass, push, open PR with the logs and
+      frames in Testing, update the issue
+
+---
+
+## 12. Fix the camera focus and put a virtual keypad on screen (2026-10-06)
+
+Two requests from the operator after section 11's runs. The frames were
+soft enough that the cursor row had to be inferred from the highlight
+bar rather than read, and with the keypad board unplugged there is no
+panel left to look at, so the LED channel that tells you which keys are
+legal has nowhere to display.
+
+Findings that shape the work:
+
+- The C920's autofocus hunts on the LCD's flat backlit face. Sweeping
+  `CAP_PROP_FOCUS` and scoring each step by Laplacian variance over the
+  LCD region put the peak at 165, about 20 % above anything autofocus
+  settled on.
+- OpenCV's device index is not the ffmpeg device name. Index 0 is this
+  laptop's built-in webcam; the C920 is index 1.
+- `cv2.imwrite` silently returns false on a path with non-ASCII
+  characters on Windows, and this repository's own path has them. The
+  first sharp run wrote no files at all and still printed success,
+  because the return value was being discarded.
+- The mainboard writes only `LS1` and `LS3` from a cold boot, so the
+  virtual panel will show channels 0..3 and 8..11 dark. That is the
+  machine's behaviour, not a bug in the viewer.
+
+Tasks:
+
+- [x] Add `--calibrate` to `menu_cursor_check`: sweep the lens, score
+      sharpness over the LCD region, report the best value
+- [x] Replace the per-frame ffmpeg capture with one OpenCV handle held
+      open for the whole run, autofocus off and focus pinned to 165
+- [x] Write frames through `cv2.imencode` plus `Path.write_bytes`, and
+      fail loudly instead of discarding the result
+- [x] Re-shoot the DOWN x3 / UP x3 sequence sharp; this doubles as the
+      second reproduction section 11 wanted
+- [x] Write `claude_test/keypad_gui`: 18 keys laid out as on the panel,
+      lamps driven from `LEDS` lines and from `RX 0x22 reg=0x03` writes,
+      arrows clickable and every other key greyed out and refused by the
+      firmware as well
+- [x] Check the GUI's maps and parsers against real log lines
+- [x] Record the EDIT MODE and RUN MODE lamp pins in `docs/led_map.json`
+- [ ] Open the PR with both runs' logs and frames in Testing

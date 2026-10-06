@@ -1,0 +1,408 @@
+11:20:41 BOOT pca9555_emu
+11:20:41 REG addr=0x21 rc=0
+11:20:41 REG addr=0x22 rc=0
+11:20:41 REG addr=0x60 rc=0
+11:20:41 READY
+11:21:11 TX 0x60 reg=0x01 data=0xFF ms=30252
+11:21:11 TX 0x60 reg=0x01 data=0xFF ms=30252
+11:21:11 RX 0x60 reg=0x03 data=0x00 ms=30254
+11:21:11 POLL ms=30610 rx21=0 tx21=0 rx22=0 tx22=0 rx60=1 tx60=2 drop=0
+11:21:11 TX 0x22 reg=0x01 data=0xFF ms=30758
+11:21:11 TX 0x22 reg=0x00 data=0xFF ms=30758
+11:21:11 RX 0x22 reg=0x03 data=0x00 ms=30760
+11:21:12 POLL ms=31611 rx21=0 tx21=0 rx22=1 tx22=2 rx60=0 tx60=0 drop=0
+11:21:16 RX 0x22 reg=0x07 data=0x00 ms=35759
+11:21:17 TX 0x21 reg=0x01 data=0xFF ms=36257
+11:21:17 TX 0x21 reg=0x00 data=0xFF ms=36257
+11:21:17 TX 0x21 reg=0x01 data=0xFF ms=36262
+11:21:17 TX 0x21 reg=0x00 data=0xFF ms=36262
+11:21:17 TX 0x21 reg=0x01 data=0xFF ms=36293
+11:21:17 TX 0x21 reg=0x00 data=0xFF ms=36293
+11:21:17 TX 0x21 reg=0x01 data=0xFF ms=36320
+11:21:17 TX 0x21 reg=0x00 data=0xFF ms=36320
+11:21:17 TX 0x21 reg=0x01 data=0xFF ms=36355
+11:21:17 TX 0x21 reg=0x00 data=0xFF ms=36355
+11:21:17 TX 0x21 reg=0x01 data=0xFF ms=36361
+11:21:18 TX 0x21 reg=0x00 data=0xFF ms=36361
+11:21:18 TX 0x21 reg=0x01 data=0xFF ms=36369
+11:21:18 TX 0x21 reg=0x00 data=0xFF ms=36369
+11:21:18 TX 0x21 reg=0x01 data=0xFF ms=36374
+11:21:18 TX 0x21 reg=0x00 data=0xFF ms=36374
+11:21:18 TX 0x21 reg=0x01 data=0xFF ms=36380
+11:21:18 TX 0x21 reg=0x00 data=0xFF ms=36380
+11:21:18 TX 0x21 reg=0x01 data=0xFF ms=36387
+11:21:18 TX 0x21 reg=0x00 data=0xFF ms=36387
+11:21:18 TX 0x21 reg=0x01 data=0xFF ms=36393
+11:21:18 TX 0x21 reg=0x00 data=0xFF ms=36393
+11:21:18 TX 0x21 reg=0x01 data=0xFF ms=36402
+11:21:18 TX 0x21 reg=0x00 data=0xFF ms=36402
+11:21:19 TX 0x21 reg=0x01 data=0xFF ms=36411
+11:21:19 TX 0x21 reg=0x00 data=0xFF ms=36411
+11:21:19 TX 0x21 reg=0x01 data=0xFF ms=36416
+11:21:19 TX 0x21 reg=0x00 data=0xFF ms=36416
+11:21:19 TX 0x21 reg=0x01 data=0xFF ms=36422
+11:21:19 TX 0x21 reg=0x00 data=0xFF ms=36422
+11:21:19 TX 0x21 reg=0x01 data=0xFF ms=36444
+11:21:19 TX 0x21 reg=0x00 data=0xFF ms=36444
+11:21:19 TX 0x21 reg=0x01 data=0xFF ms=36452
+11:21:19 TX 0x21 reg=0x00 data=0xFF ms=36452
+11:21:19 TX 0x21 reg=0x01 data=0xFF ms=36476
+11:21:19 TX 0x21 reg=0x00 data=0xFF ms=36476
+11:21:19 RX 0x60 reg=0x09 data=0x10 ms=36480
+11:21:19 RX 0x60 reg=0x07 data=0x00 ms=36486
+11:21:20 RX 0x22 reg=0x03 data=0xFC ms=36490
+11:21:20 TX 0x21 reg=0x01 data=0xFF ms=36494
+11:21:20 TX 0x21 reg=0x00 data=0xFF ms=36494
+11:21:20 TX 0x21 reg=0x01 data=0xFF ms=36549
+11:21:20 TX 0x21 reg=0x00 data=0xFF ms=36549
+11:21:20 TX 0x21 reg=0x01 data=0xFF ms=36595
+11:21:20 TX 0x21 reg=0x00 data=0xFF ms=36595
+11:21:20 TX 0x21 reg=0x01 data=0xFF ms=36651
+11:21:20 TX 0x21 reg=0x00 data=0xFF ms=36651
+11:21:20 TX 0x21 reg=0x01 data=0xFF ms=36694
+11:21:20 TX 0x21 reg=0x00 data=0xFF ms=36694
+11:21:20 TX 0x21 reg=0x01 data=0xFF ms=36746
+11:21:20 TX 0x21 reg=0x00 data=0xFF ms=36747
+11:21:21 TX 0x21 reg=0x01 data=0xFF ms=36794
+11:21:21 TX 0x21 reg=0x00 data=0xFF ms=36794
+11:21:21 TX 0x21 reg=0x01 data=0xFF ms=36847
+11:21:21 TX 0x21 reg=0x00 data=0xFF ms=36847
+11:21:21 TX 0x21 reg=0x01 data=0xFF ms=36897
+11:21:21 TX 0x21 reg=0x00 data=0xFF ms=36897
+11:21:21 TX 0x21 reg=0x01 data=0xFF ms=36947
+11:21:21 TX 0x21 reg=0x00 data=0xFF ms=36947
+11:21:21 TX 0x21 reg=0x01 data=0xFF ms=36994
+11:21:21 TX 0x21 reg=0x00 data=0xFF ms=36994
+11:21:21 TX 0x21 reg=0x01 data=0xFF ms=37046
+11:21:21 TX 0x21 reg=0x00 data=0xFF ms=37046
+11:21:21 TX 0x21 reg=0x01 data=0xFF ms=37097
+11:21:22 TX 0x21 reg=0x00 data=0xFF ms=37097
+11:21:22 TX 0x21 reg=0x01 data=0xFF ms=37146
+11:21:22 TX 0x21 reg=0x00 data=0xFF ms=37146
+11:21:22 TX 0x21 reg=0x01 data=0xFF ms=37194
+11:21:22 TX 0x21 reg=0x00 data=0xFF ms=37194
+11:21:22 TX 0x21 reg=0x01 data=0xFF ms=37246
+11:21:22 TX 0x21 reg=0x00 data=0xFF ms=37246
+11:21:22 TX 0x21 reg=0x01 data=0xFF ms=37296
+11:21:22 TX 0x21 reg=0x00 data=0xFF ms=37296
+11:21:22 TX 0x21 reg=0x01 data=0xFF ms=37346
+11:21:22 TX 0x21 reg=0x00 data=0xFF ms=37346
+11:21:22 TX 0x21 reg=0x01 data=0xFF ms=37396
+11:21:22 TX 0x21 reg=0x00 data=0xFF ms=37396
+11:21:22 TX 0x21 reg=0x01 data=0xFF ms=37446
+11:21:23 TX 0x21 reg=0x00 data=0xFF ms=37446
+11:21:23 TX 0x21 reg=0x01 data=0xFF ms=37495
+11:21:23 TX 0x21 reg=0x00 data=0xFF ms=37495
+11:21:23 TX 0x21 reg=0x01 data=0xFF ms=37546
+11:21:23 TX 0x21 reg=0x00 data=0xFF ms=37546
+11:21:23 TX 0x21 reg=0x01 data=0xFF ms=37602
+11:21:23 TX 0x21 reg=0x00 data=0xFF ms=37602
+11:21:23 TX 0x21 reg=0x01 data=0xFF ms=37646
+11:21:23 TX 0x21 reg=0x00 data=0xFF ms=37646
+11:21:23 TX 0x21 reg=0x01 data=0xFF ms=37696
+11:21:23 TX 0x21 reg=0x00 data=0xFF ms=37696
+11:21:23 TX 0x21 reg=0x01 data=0xFF ms=37746
+11:21:23 TX 0x21 reg=0x00 data=0xFF ms=37746
+11:21:24 TX 0x21 reg=0x01 data=0xFF ms=37794
+11:21:24 TX 0x21 reg=0x00 data=0xFF ms=37794
+11:21:24 TX 0x21 reg=0x01 data=0xFF ms=37846
+11:21:24 TX 0x21 reg=0x00 data=0xFF ms=37846
+11:21:24 TX 0x21 reg=0x01 data=0xFF ms=37895
+11:21:24 TX 0x21 reg=0x00 data=0xFF ms=37895
+11:21:24 TX 0x21 reg=0x01 data=0xFF ms=37945
+11:21:24 TX 0x21 reg=0x00 data=0xFF ms=37945
+11:21:24 TX 0x21 reg=0x01 data=0xFF ms=37994
+11:21:24 TX 0x21 reg=0x00 data=0xFF ms=37994
+11:21:24 TX 0x21 reg=0x01 data=0xFF ms=38045
+11:21:24 TX 0x21 reg=0x00 data=0xFF ms=38045
+11:21:24 TX 0x21 reg=0x01 data=0xFF ms=38095
+11:21:25 TX 0x21 reg=0x00 data=0xFF ms=38095
+11:21:25 TX 0x21 reg=0x01 data=0xFF ms=38145
+11:21:25 TX 0x21 reg=0x00 data=0xFF ms=38145
+11:21:25 TX 0x21 reg=0x01 data=0xFF ms=38196
+11:21:25 TX 0x21 reg=0x00 data=0xFF ms=38196
+11:21:25 TX 0x21 reg=0x01 data=0xFF ms=38246
+11:21:25 TX 0x21 reg=0x00 data=0xFF ms=38246
+11:21:25 TX 0x21 reg=0x01 data=0xFF ms=38293
+11:21:25 TX 0x21 reg=0x00 data=0xFF ms=38293
+11:21:25 TX 0x21 reg=0x01 data=0xFF ms=38345
+11:21:25 TX 0x21 reg=0x00 data=0xFF ms=38345
+11:21:25 TX 0x21 reg=0x01 data=0xFF ms=38395
+11:21:25 TX 0x21 reg=0x00 data=0xFF ms=38395
+11:21:25 TX 0x21 reg=0x01 data=0xFF ms=38445
+11:21:26 TX 0x21 reg=0x00 data=0xFF ms=38445
+11:21:26 TX 0x21 reg=0x01 data=0xFF ms=38493
+11:21:26 TX 0x21 reg=0x00 data=0xFF ms=38493
+11:21:26 TX 0x21 reg=0x01 data=0xFF ms=38545
+11:21:26 TX 0x21 reg=0x00 data=0xFF ms=38545
+11:21:26 TX 0x21 reg=0x01 data=0xFF ms=38595
+11:21:26 TX 0x21 reg=0x00 data=0xFF ms=38595
+11:21:26 TX 0x21 reg=0x01 data=0xFF ms=38645
+11:21:26 TX 0x21 reg=0x00 data=0xFF ms=38645
+11:21:26 TX 0x21 reg=0x01 data=0xFF ms=38699
+11:21:26 TX 0x21 reg=0x00 data=0xFF ms=38699
+11:21:26 TX 0x21 reg=0x01 data=0xFF ms=38745
+11:21:26 TX 0x21 reg=0x00 data=0xFF ms=38745
+11:21:27 TX 0x21 reg=0x01 data=0xFF ms=38792
+11:21:27 TX 0x21 reg=0x00 data=0xFF ms=38792
+11:21:27 TX 0x21 reg=0x01 data=0xFF ms=38845
+11:21:27 TX 0x21 reg=0x00 data=0xFF ms=38845
+11:21:27 TX 0x21 reg=0x01 data=0xFF ms=38894
+11:21:27 TX 0x21 reg=0x00 data=0xFF ms=38894
+11:21:27 TX 0x21 reg=0x01 data=0xFF ms=38945
+11:21:27 TX 0x21 reg=0x00 data=0xFF ms=38945
+11:21:27 TX 0x21 reg=0x01 data=0xFF ms=38993
+11:21:27 TX 0x21 reg=0x00 data=0xFF ms=38993
+11:21:27 TX 0x21 reg=0x01 data=0xFF ms=39044
+11:21:27 TX 0x21 reg=0x00 data=0xFF ms=39044
+11:21:27 TX 0x21 reg=0x01 data=0xFF ms=39095
+11:21:28 TX 0x21 reg=0x00 data=0xFF ms=39095
+11:21:28 TX 0x21 reg=0x01 data=0xFF ms=39144
+11:21:28 TX 0x21 reg=0x00 data=0xFF ms=39144
+11:21:28 TX 0x21 reg=0x01 data=0xFF ms=39193
+11:21:28 TX 0x21 reg=0x00 data=0xFF ms=39193
+11:21:28 TX 0x21 reg=0x01 data=0xFF ms=39244
+11:21:28 TX 0x21 reg=0x00 data=0xFF ms=39244
+11:21:28 TX 0x21 reg=0x01 data=0xFF ms=39293
+11:21:28 TX 0x21 reg=0x00 data=0xFF ms=39293
+11:21:28 TX 0x21 reg=0x01 data=0xFF ms=39344
+11:21:28 TX 0x21 reg=0x00 data=0xFF ms=39344
+11:21:28 TX 0x21 reg=0x01 data=0xFF ms=39392
+11:21:28 TX 0x21 reg=0x00 data=0xFF ms=39392
+11:21:28 TX 0x21 reg=0x01 data=0xFF ms=39444
+11:21:29 TX 0x21 reg=0x00 data=0xFF ms=39444
+11:21:29 TX 0x21 reg=0x01 data=0xFF ms=39494
+11:21:29 TX 0x21 reg=0x00 data=0xFF ms=39494
+11:21:29 TX 0x21 reg=0x01 data=0xFF ms=39544
+11:21:29 TX 0x21 reg=0x00 data=0xFF ms=39544
+11:21:29 TX 0x21 reg=0x01 data=0xFF ms=39592
+11:21:29 TX 0x21 reg=0x00 data=0xFF ms=39592
+11:21:29 TX 0x21 reg=0x01 data=0xFF ms=39644
+11:21:29 TX 0x21 reg=0x00 data=0xFF ms=39644
+11:21:29 TX 0x21 reg=0x01 data=0xFF ms=39694
+11:21:29 TX 0x21 reg=0x00 data=0xFF ms=39694
+11:21:29 TX 0x21 reg=0x01 data=0xFF ms=39745
+11:21:29 TX 0x21 reg=0x00 data=0xFF ms=39745
+11:21:30 TX 0x21 reg=0x01 data=0xFF ms=39799
+11:21:30 TX 0x21 reg=0x00 data=0xFF ms=39799
+11:21:30 TX 0x21 reg=0x01 data=0xFF ms=39844
+11:21:30 TX 0x21 reg=0x00 data=0xFF ms=39844
+11:21:30 TX 0x21 reg=0x01 data=0xFF ms=39899
+11:21:30 TX 0x21 reg=0x00 data=0xFF ms=39899
+11:21:30 TX 0x21 reg=0x01 data=0xFF ms=39944
+11:21:30 TX 0x21 reg=0x00 data=0xFF ms=39944
+11:21:30 TX 0x21 reg=0x01 data=0xFF ms=40000
+11:21:30 TX 0x21 reg=0x00 data=0xFF ms=40000
+11:21:30 TX 0x21 reg=0x01 data=0xFF ms=40044
+11:21:30 TX 0x21 reg=0x00 data=0xFF ms=40044
+11:21:30 TX 0x21 reg=0x01 data=0xFF ms=40094
+11:21:31 TX 0x21 reg=0x00 data=0xFF ms=40094
+11:21:31 TX 0x21 reg=0x01 data=0xFF ms=40144
+11:21:31 TX 0x21 reg=0x00 data=0xFF ms=40144
+11:21:31 TX 0x21 reg=0x01 data=0xFF ms=40192
+11:21:31 TX 0x21 reg=0x00 data=0xFF ms=40192
+11:21:31 TX 0x21 reg=0x01 data=0xFF ms=40243
+11:21:31 TX 0x21 reg=0x00 data=0xFF ms=40243
+11:21:31 TX 0x21 reg=0x01 data=0xFF ms=40294
+11:21:31 TX 0x21 reg=0x00 data=0xFF ms=40294
+11:21:31 TX 0x21 reg=0x01 data=0xFF ms=40343
+11:21:31 TX 0x21 reg=0x00 data=0xFF ms=40343
+11:21:31 TX 0x21 reg=0x01 data=0xFF ms=40391
+11:21:31 TX 0x21 reg=0x00 data=0xFF ms=40391
+11:21:31 TX 0x21 reg=0x01 data=0xFF ms=40443
+11:21:32 TX 0x21 reg=0x00 data=0xFF ms=40443
+11:21:32 TX 0x21 reg=0x01 data=0xFF ms=40493
+11:21:32 TX 0x21 reg=0x00 data=0xFF ms=40493
+11:21:32 TX 0x21 reg=0x01 data=0xFF ms=40543
+11:21:32 TX 0x21 reg=0x00 data=0xFF ms=40543
+11:21:32 TX 0x21 reg=0x01 data=0xFF ms=40593
+11:21:32 TX 0x21 reg=0x00 data=0xFF ms=40593
+11:21:32 TX 0x21 reg=0x01 data=0xFF ms=40643
+11:21:32 TX 0x21 reg=0x00 data=0xFF ms=40643
+11:21:32 TX 0x21 reg=0x01 data=0xFF ms=40693
+11:21:32 TX 0x21 reg=0x00 data=0xFF ms=40693
+11:21:32 TX 0x21 reg=0x01 data=0xFF ms=40743
+11:21:32 TX 0x21 reg=0x00 data=0xFF ms=40743
+11:21:33 TX 0x21 reg=0x01 data=0xFF ms=40791
+11:21:33 TX 0x21 reg=0x00 data=0xFF ms=40791
+11:21:33 TX 0x21 reg=0x01 data=0xFF ms=40843
+11:21:33 TX 0x21 reg=0x00 data=0xFF ms=40843
+11:21:33 TX 0x21 reg=0x01 data=0xFF ms=40898
+11:21:33 TX 0x21 reg=0x00 data=0xFF ms=40898
+11:21:33 TX 0x21 reg=0x01 data=0xFF ms=40943
+11:21:33 TX 0x21 reg=0x00 data=0xFF ms=40943
+11:21:33 TX 0x21 reg=0x01 data=0xFF ms=40993
+11:21:33 TX 0x21 reg=0x00 data=0xFF ms=40993
+11:21:33 TX 0x21 reg=0x01 data=0xFF ms=41043
+11:21:33 TX 0x21 reg=0x00 data=0xFF ms=41043
+11:21:33 TX 0x21 reg=0x01 data=0xFF ms=41091
+11:21:34 TX 0x21 reg=0x00 data=0xFF ms=41091
+11:21:34 TX 0x21 reg=0x01 data=0xFF ms=41143
+11:21:34 TX 0x21 reg=0x00 data=0xFF ms=41143
+11:21:34 TX 0x21 reg=0x01 data=0xFF ms=41192
+11:21:34 TX 0x21 reg=0x00 data=0xFF ms=41192
+11:21:34 TX 0x21 reg=0x01 data=0xFF ms=41242
+11:21:34 TX 0x21 reg=0x00 data=0xFF ms=41242
+11:21:34 TX 0x21 reg=0x01 data=0xFF ms=41293
+11:21:34 TX 0x21 reg=0x00 data=0xFF ms=41293
+11:21:34 TX 0x21 reg=0x01 data=0xFF ms=41343
+11:21:34 TX 0x21 reg=0x00 data=0xFF ms=41343
+11:21:34 TX 0x21 reg=0x01 data=0xFF ms=41390
+11:21:34 TX 0x21 reg=0x00 data=0xFF ms=41390
+11:21:35 TX 0x21 reg=0x01 data=0xFF ms=41442
+11:21:35 TX 0x21 reg=0x00 data=0xFF ms=41442
+11:21:35 TX 0x21 reg=0x01 data=0xFF ms=41492
+11:21:35 TX 0x21 reg=0x00 data=0xFF ms=41492
+11:21:35 TX 0x21 reg=0x01 data=0xFF ms=41542
+11:21:35 TX 0x21 reg=0x00 data=0xFF ms=41542
+11:21:35 TX 0x21 reg=0x01 data=0xFF ms=41590
+11:21:35 TX 0x21 reg=0x00 data=0xFF ms=41590
+11:21:35 TX 0x21 reg=0x01 data=0xFF ms=41642
+11:21:35 TX 0x21 reg=0x00 data=0xFF ms=41642
+11:21:35 TX 0x21 reg=0x01 data=0xFF ms=41692
+11:21:35 TX 0x21 reg=0x00 data=0xFF ms=41692
+11:21:35 TX 0x21 reg=0x01 data=0xFF ms=41742
+11:21:35 TX 0x21 reg=0x00 data=0xFF ms=41742
+11:21:36 TX 0x21 reg=0x01 data=0xFF ms=41790
+11:21:36 TX 0x21 reg=0x00 data=0xFF ms=41790
+11:21:36 TX 0x21 reg=0x01 data=0xFF ms=41842
+11:21:36 TX 0x21 reg=0x00 data=0xFF ms=41842
+11:21:36 TX 0x21 reg=0x01 data=0xFF ms=41891
+11:21:36 TX 0x21 reg=0x00 data=0xFF ms=41891
+11:21:36 TX 0x21 reg=0x01 data=0xFF ms=41942
+11:21:36 TX 0x21 reg=0x00 data=0xFF ms=41942
+11:21:36 TX 0x21 reg=0x01 data=0xFF ms=41996
+11:21:36 TX 0x21 reg=0x00 data=0xFF ms=41996
+11:21:36 TX 0x21 reg=0x01 data=0xFF ms=42042
+11:21:36 TX 0x21 reg=0x00 data=0xFF ms=42042
+11:21:36 TX 0x21 reg=0x01 data=0xFF ms=42091
+11:21:37 TX 0x21 reg=0x00 data=0xFF ms=42091
+11:21:37 TX 0x21 reg=0x01 data=0xFF ms=42142
+11:21:37 TX 0x21 reg=0x00 data=0xFF ms=42142
+11:21:37 TX 0x21 reg=0x01 data=0xFF ms=42191
+11:21:37 TX 0x21 reg=0x00 data=0xFF ms=42191
+11:21:37 TX 0x21 reg=0x01 data=0xFF ms=42241
+11:21:37 TX 0x21 reg=0x00 data=0xFF ms=42241
+11:21:37 TX 0x21 reg=0x01 data=0xFF ms=42290
+11:21:37 TX 0x21 reg=0x00 data=0xFF ms=42290
+11:21:37 TX 0x21 reg=0x01 data=0xFF ms=42341
+11:21:37 TX 0x21 reg=0x00 data=0xFF ms=42341
+11:21:37 TX 0x21 reg=0x01 data=0xFF ms=42391
+11:21:37 TX 0x21 reg=0x00 data=0xFF ms=42391
+11:21:37 TX 0x21 reg=0x01 data=0xFF ms=42441
+11:21:38 TX 0x21 reg=0x00 data=0xFF ms=42441
+11:21:38 TX 0x21 reg=0x01 data=0xFF ms=42492
+11:21:38 TX 0x21 reg=0x00 data=0xFF ms=42492
+11:21:38 TX 0x21 reg=0x01 data=0xFF ms=42542
+11:21:38 TX 0x21 reg=0x00 data=0xFF ms=42542
+11:21:38 TX 0x21 reg=0x01 data=0xFF ms=42589
+11:21:38 TX 0x21 reg=0x00 data=0xFF ms=42589
+11:21:38 TX 0x21 reg=0x01 data=0xFF ms=42641
+11:21:38 TX 0x21 reg=0x00 data=0xFF ms=42641
+11:21:38 TX 0x21 reg=0x01 data=0xFF ms=42691
+11:21:38 TX 0x21 reg=0x00 data=0xFF ms=42691
+11:21:38 TX 0x21 reg=0x01 data=0xFF ms=42742
+11:21:38 TX 0x21 reg=0x00 data=0xFF ms=42742
+11:21:39 TX 0x21 reg=0x01 data=0xFF ms=42789
+11:21:39 TX 0x21 reg=0x00 data=0xFF ms=42789
+11:21:39 TX 0x21 reg=0x01 data=0xFF ms=42841
+11:21:39 TX 0x21 reg=0x00 data=0xFF ms=42841
+11:21:39 TX 0x21 reg=0x01 data=0xFF ms=42891
+11:21:39 TX 0x21 reg=0x00 data=0xFF ms=42891
+11:21:39 TX 0x21 reg=0x01 data=0xFF ms=42941
+11:21:39 TX 0x21 reg=0x00 data=0xFF ms=42941
+11:21:39 POLL ms=58667 rx21=0 tx21=926 rx22=2 tx22=0 rx60=2 tx60=0 drop=0
+11:21:39 LEDS ..............*. ms=58870
+11:21:40 POLL ms=59672 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:41 POLL ms=60676 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:42 POLL ms=61677 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:43 POLL ms=62683 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:44 POLL ms=63689 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:45 POLL ms=64689 rx21=0 tx21=38 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:46 POLL ms=65691 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:47 POLL ms=66691 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:48 POLL ms=67694 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:49 POLL ms=68695 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:50 POLL ms=69696 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:51 POLL ms=70698 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:52 POLL ms=71699 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:53 POLL ms=72705 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:54 POLL ms=73706 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:55 POLL ms=74712 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:56 POLL ms=75713 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:57 POLL ms=76713 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:58 POLL ms=77714 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:21:59 POLL ms=78715 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:00 POLL ms=79719 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:01 POLL ms=80719 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:02 POLL ms=81722 rx21=0 tx21=38 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:03 POLL ms=82722 rx21=0 tx21=38 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:04 POLL ms=83724 rx21=0 tx21=38 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:05 POLL ms=84728 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:06 POLL ms=85733 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:07 POLL ms=86734 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:08 POLL ms=87735 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:09 POLL ms=88740 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:10 POLL ms=89741 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:11 POLL ms=90742 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:12 POLL ms=91743 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:13 POLL ms=92745 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:14 POLL ms=93746 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:15 POLL ms=94749 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:16 POLL ms=95755 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:17 POLL ms=96761 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:18 POLL ms=97767 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:19 POLL ms=98773 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:20 POLL ms=99779 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:21 POLL ms=100785 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:22 POLL ms=101786 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:23 POLL ms=102786 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:24 POLL ms=103788 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:25 POLL ms=104793 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:26 POLL ms=105799 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:27 POLL ms=106800 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:28 POLL ms=107806 rx21=0 tx21=42 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:29 POLL ms=108808 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:30 POLL ms=109810 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:31 POLL ms=110813 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:32 POLL ms=111815 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:33 POLL ms=112815 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:34 POLL ms=113815 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:35 POLL ms=114815 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:36 POLL ms=115815 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:37 POLL ms=116816 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:38 POLL ms=117819 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:39 POLL ms=118824 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:40 POLL ms=119828 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:41 POLL ms=120831 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:42 POLL ms=121835 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:43 POLL ms=122841 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:44 POLL ms=123845 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:45 POLL ms=124849 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:46 POLL ms=125854 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:47 POLL ms=126858 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:48 POLL ms=127864 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:49 POLL ms=128867 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:50 POLL ms=129870 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:51 POLL ms=130871 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:52 POLL ms=131873 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:53 POLL ms=132876 rx21=0 tx21=38 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:54 POLL ms=133879 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:55 POLL ms=134879 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:56 POLL ms=135882 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:57 POLL ms=136886 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:58 POLL ms=137889 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:22:59 POLL ms=138892 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:00 POLL ms=139892 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:01 POLL ms=140894 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:02 POLL ms=141894 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:03 POLL ms=142898 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:04 POLL ms=143902 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:05 POLL ms=144903 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:06 POLL ms=145907 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:08 POLL ms=146913 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:09 POLL ms=147917 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:10 POLL ms=148923 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:11 POLL ms=149928 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:12 POLL ms=150930 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0
+11:23:13 POLL ms=151934 rx21=0 tx21=40 rx22=0 tx22=0 rx60=0 tx60=0 drop=0

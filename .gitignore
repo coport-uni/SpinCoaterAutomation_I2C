@@ -1,0 +1,20 @@
+# ===== Python (host scripts under claude_test/) =====
+__pycache__/
+*.py[cod]
+.ruff_cache/
+
+# ===== Arduino build output =====
+build/
+*.elf
+*.bin
+*.hex
+*.map
+
+# ===== Editor / OS =====
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini

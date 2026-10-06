@@ -43,24 +43,31 @@ that answers the same three addresses is indistinguishable from it.
 
 ## Status
 
-Stage 1 of the three the specification defines is complete.
+All three stages have now been exercised on the real machine. The
+emulator has replaced the keypad board and moved the menu cursor.
 
 ```mermaid
 flowchart LR
     S1["<b>1 · Explore</b><br/>addresses, button bitmap, LED map<br/><i>done 2026-09-29</i>"]
-    S2["<b>2 · Record</b><br/>log what the mainboard sends<br/><i>not started</i>"]
-    S3["<b>3 · Emulate</b><br/>inject keys, drive the coater<br/><i>not started</i>"]
+    S2["<b>2 · Record</b><br/>log what the mainboard sends<br/><i>done 2026-10-06</i>"]
+    S3["<b>3 · Emulate</b><br/>inject keys, drive the coater<br/><i>arrows verified 2026-10-06</i>"]
     S1 --> S2 --> S3
 
     classDef done fill:#d8eedd,stroke:#2f7d55,color:#11161d
-    classDef todo fill:#eceff3,stroke:#9aa3b0,color:#3d4a59
-    class S1 done
-    class S2,S3 todo
+    classDef part fill:#fdf0d0,stroke:#a8821f,color:#11161d
+    class S1,S2 done
+    class S3 part
 ```
 
-The keypad board was detached from the mainboard and run standalone off
-the Arduino UNO Q's 3.3 V rail. All 18 buttons and all 16 PCA9532 LEDs
-were mapped on that bench. **The mainboard has never been connected.**
+Stage 1 ran with the keypad board detached from the mainboard and
+powered off the Arduino UNO Q's 3.3 V rail; all 18 buttons and all 16
+PCA9532 LEDs were mapped there. For stages 2 and 3 the keypad was
+unplugged for good and the UNO Q took its place on the mainboard bus
+through a PCA9306 translator. The mainboard boots normally against the
+emulator and the up and down arrows move the "Select Process" cursor.
+
+Stage 3 is **partial**: only the two arrow keys are implemented, and the
+firmware refuses every other key by name. Nothing yet drives the chuck.
 
 ## Hardware
 
@@ -269,10 +276,110 @@ claude_test/
 | `i2c_scan` | bus address scan | verified on hardware |
 | `pca9532_led` | LED control (`LED n on/off/pwm0/pwm1`, `ALL off`, `WALK ms`, `HALT`) | verified on hardware |
 | `pca9555_poll` | button polling | not written; `claude_test/keypad_probe` covers it for now |
-| `pca9555_emu` | slave emulator | not written |
+| `pca9555_emu` | slave emulator: answers `0x21`, `0x22` and `0x60` for the mainboard, logs its traffic, injects the arrow keys | verified on hardware 2026-10-06 |
 
 `pca9532_led` refuses `ALL on` on purpose, to avoid lighting all 16
 LEDs at once while the board is running off a 3.3 V bench supply.
+
+`pca9555_emu` refuses every key except the two arrows, by name, in
+`handle_line()`. START, STOP and VACUUM cannot be reached from the host
+protocol at all — not because the host declines to ask, but because the
+firmware will not serve the request. Its host commands are:
+
+```
+PRESS UP [ms]      hold the up arrow, default 100 ms, 20..1000
+PRESS DOWN [ms]    hold the down arrow
+RELEASE            release early
+STATE              print the register files and the INT level
+LOG ON | LOG OFF   log every read, not only the ones that changed
+```
+
+## The mainboard, measured 2026-10-06
+
+With the keypad unplugged and `firmware/pca9555_emu` answering in its
+place, the spin coater was powered on and its traffic recorded from the
+first byte. This is the stage 2 data the specification asked for.
+
+```mermaid
+flowchart LR
+    MB["<b>Spin coater mainboard</b><br/>sole I2C master · 5 V"]
+    LS["<b>PCA9306</b><br/>VREF1 3.3 V · VREF2 5 V"]
+    I2C2["<b>i2c2</b> · D20/D21<br/>OA1 <code>0x21</code> · OA2 <code>0x22</code>"]
+    I2C3["<b>i2c3</b> · A4/A5<br/>OA1 <code>0x60</code>"]
+    MB <--> LS
+    LS <--> I2C2
+    LS <--> I2C3
+
+    classDef ext fill:#eceff3,stroke:#9aa3b0,color:#11161d
+    classDef emu fill:#d8eedd,stroke:#2f7d55,color:#11161d
+    class MB,LS ext
+    class I2C2,I2C3 emu
+```
+
+A4 and A5 are jumpered to D20 and D21, so both controllers sit on the
+one physical bus. All three addresses registered with `rc=0`.
+
+### What it writes at power-on
+
+Six writes, and then it never writes again unless something changes:
+
+| Order | Address | Register | Value | Meaning |
+| --- | --- | --- | --- | --- |
+| 1 | `0x60` | `0x03` PWM0 | `0x00` | dimmer duty |
+| 2 | `0x22` | `0x03` output 1 | `0x00` | |
+| 3 | `0x22` | `0x07` config 1 | `0x00` | **port 1 is all outputs** |
+| 4 | `0x60` | `0x09` LS3 | `0x10` | channel 14 on |
+| 5 | `0x60` | `0x07` LS1 | `0x00` | channels 4–7 off |
+| 6 | `0x22` | `0x03` output 1 | `0xFC` | **bits 0 and 1 driven low** |
+
+Write 3 answers an open item. The mainboard declares all of `0x22`
+port 1 as outputs and then pulls bits 0 and 1 low, which is how the two
+LEDs that are not on the PCA9532 are driven. The buttons EDIT MODE and
+RUN MODE are on `0x22` port **0**; their indicator LEDs are on `0x22`
+port **1**, bits 0 and 1, active low.
+
+It never writes `LS0` (`0x06`) or `LS2` (`0x08`), so PCA9532 channels
+0–3 and 8–11 are never lit from a cold boot. The LED map of stage 1 was
+built by driving all 16 channels from the Arduino, so it says which
+channel reaches which lamp; it does not say the mainboard uses them all.
+
+### How it reads
+
+Only `0x21` is polled. `0x22` and `0x60` were each read twice during
+start-up and never again.
+
+| Measure | Value |
+| --- | --- |
+| Registers polled | `0x00` and `0x01` of `0x21`, as one pair |
+| Rate | 40 register reads per second, steady |
+| Period | **50 ms** per pair |
+| Dropped log events over 150 s | 0 |
+
+### INT is not required
+
+The expanders' interrupt line has no channel left on a two-channel
+PCA9306, so D2 was left unconnected and `INT_WIRED` is `0`. The 50 ms
+poll is unconditional, so the mainboard sees a key purely from the input
+register. A 120 ms hold is comfortably longer than one poll period and
+was accepted every time.
+
+Wiring INT straight across would be a fault, not a shortcut: the line is
+pulled to 5 V on the mainboard side whenever it is released, and the
+UNO Q's D2 does not tolerate that.
+
+### The LED write confirms the cursor independently
+
+Channel 15 is the up arrow's lamp. On row 1 it is dark, because there is
+nowhere to go up; it lights as soon as the cursor leaves row 1.
+
+| Cursor | `LS3` (`0x60` reg `0x09`) | Channel 14 | Channel 15 |
+| --- | --- | --- | --- |
+| row 1 | `0x10` | on | off |
+| rows 2–4 | `0x50` | on | on |
+
+So the mainboard's own LED traffic reports where the cursor is, without
+the camera. That is the "list of keys you may press right now" channel
+the operator noticed on the real keypad, read from the other side.
 
 ## Next steps
 
@@ -421,14 +528,19 @@ emulator's state feedback channel.
 | --- | --- |
 | Mainboard bus voltage | **measured: 5 V.** Level shifter mandatory |
 | Three addresses at once from one UNO Q | **resolved.** Target mode and two targets per controller both measured; two header controllers reach four addresses |
-| Mainboard polling order, period, init sequence | this is what stage 2 is for |
-| Minimum key hold time the mainboard accepts | to be searched from 100 ms in 50 ms steps |
-| Which `0x22` pins carry the two LEDs | to be settled by the stage 2 log |
+| Mainboard polling order, period, init sequence | **measured 2026-10-06.** Six init writes, then `0x21` input registers every 50 ms and nothing else |
+| Which `0x22` pins carry the two LEDs | **measured 2026-10-06.** Output port 1, bits 0 and 1, active low |
+| Whether INT must be driven | **no.** The 50 ms poll is unconditional, so D2 stays unconnected |
+| Minimum key hold time the mainboard accepts | 120 ms works every time; the floor has not been searched |
+| Why `LS0` and `LS2` are never written | the down arrow's lamp stayed dark while the key was legal. Either it is driven from elsewhere or that channel assignment needs re-checking |
+| Keys beyond the two arrows | not implemented, and refused by name in firmware |
 | A physical connector for X1 | not sourced |
 
-The button map and the LED map are each confirmed once. §7 of the
-specification asks for two independent reproductions, so a verification
-pass is still outstanding.
+The button map is confirmed once. §7 of the specification asks for two
+independent reproductions, so a verification pass is still outstanding
+for the buttons. The up arrow's lamp, channel 15, now has a second and
+independent confirmation: it tracks the Select Process cursor from the
+mainboard's own LED writes, with no keypad involved.
 
 ## References
 
