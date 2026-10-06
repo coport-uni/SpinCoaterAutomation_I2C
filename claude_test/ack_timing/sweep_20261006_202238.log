@@ -1,0 +1,320 @@
+> REGS
+20:22:39 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:22:39 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> TIMING 2 40FC1228
+20:22:40 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:22:40 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:22:40 CLEAR ok
+> STAT
+20:22:45 STAT 0x21 cmd=0x00 n=101 data=0 read=0 lost=101
+20:22:45 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:22:45 SPAN 0x21 even lost cmd_to_stop n=101 min_ns=62406 avg_ns=68300 max_ns=68850
+20:22:45 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=123337 avg_ns=124712 max_ns=128662
+20:22:45 STAT 0x22 cmd=0x00 n=108 data=0 read=0 lost=107
+20:22:46 SPAN 0x22 even lost cmd_to_stop n=107 min_ns=64950 avg_ns=69137 max_ns=87975
+20:22:46 STAT end ms=181597
+> TIMING 2 40FC1228
+20:22:46 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:22:46 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 0
+20:22:47 REGS i2c2 cr1=0x000000FD timingr=0x40F01228 presc=4 scldel=15 sdadel=0 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:22:47 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:22:47 CLEAR ok
+> STAT
+20:22:52 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:22:52 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:22:52 SPAN 0x21 even read cmd_to_stop n=101 min_ns=120618 avg_ns=124593 max_ns=129118
+20:22:52 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=120912 avg_ns=124812 max_ns=129931
+20:22:52 STAT 0x22 cmd=0x00 n=108 data=0 read=108 lost=0
+20:22:53 SPAN 0x22 even read cmd_to_stop n=108 min_ns=121281 avg_ns=124768 max_ns=134068
+20:22:53 STAT end ms=188634
+> TIMING 2 40FC1228
+20:22:53 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:22:53 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 1
+20:22:54 REGS i2c2 cr1=0x000000FD timingr=0x40F11228 presc=4 scldel=15 sdadel=1 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:22:54 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:22:54 CLEAR ok
+> STAT
+20:22:59 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:22:59 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:22:59 SPAN 0x21 even read cmd_to_stop n=101 min_ns=120343 avg_ns=124600 max_ns=131000
+20:22:59 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=122162 avg_ns=124575 max_ns=124781
+20:23:00 STAT 0x22 cmd=0x00 n=108 data=0 read=108 lost=0
+20:23:00 SPAN 0x22 even read cmd_to_stop n=108 min_ns=121543 avg_ns=124950 max_ns=163450
+20:23:00 STAT end ms=195675
+> TIMING 2 40FC1228
+20:23:00 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:00 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 2
+20:23:01 REGS i2c2 cr1=0x00000009 timingr=0x40F21228 presc=4 scldel=15 sdadel=2 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:01 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:23:01 CLEAR ok
+> STAT
+20:23:06 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:23:06 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:23:06 SPAN 0x21 even read cmd_to_stop n=101 min_ns=117637 avg_ns=124456 max_ns=127206
+20:23:06 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=120268 avg_ns=124550 max_ns=126750
+20:23:07 STAT 0x22 cmd=0x00 n=108 data=0 read=108 lost=0
+20:23:07 SPAN 0x22 even read cmd_to_stop n=108 min_ns=118087 avg_ns=125437 max_ns=167031
+20:23:07 STAT end ms=202723
+> TIMING 2 40FC1228
+20:23:07 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:07 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 3
+20:23:08 REGS i2c2 cr1=0x00000009 timingr=0x40F31228 presc=4 scldel=15 sdadel=3 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:08 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:23:08 CLEAR ok
+> STAT
+20:23:13 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:23:13 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:23:13 SPAN 0x21 even read cmd_to_stop n=101 min_ns=118443 avg_ns=124493 max_ns=124875
+20:23:14 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=117012 avg_ns=124375 max_ns=124768
+20:23:14 STAT 0x22 cmd=0x00 n=109 data=0 read=109 lost=0
+20:23:14 SPAN 0x22 even read cmd_to_stop n=109 min_ns=116981 avg_ns=124968 max_ns=163668
+20:23:14 STAT end ms=209783
+> TIMING 2 40FC1228
+20:23:14 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:14 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 4
+20:23:15 REGS i2c2 cr1=0x00000009 timingr=0x40F41228 presc=4 scldel=15 sdadel=4 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:15 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:23:15 CLEAR ok
+> STAT
+20:23:20 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:23:20 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:23:21 SPAN 0x21 even read cmd_to_stop n=101 min_ns=118081 avg_ns=124550 max_ns=131181
+20:23:21 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=118687 avg_ns=124556 max_ns=127393
+20:23:21 STAT 0x22 cmd=0x00 n=109 data=0 read=109 lost=0
+20:23:21 SPAN 0x22 even read cmd_to_stop n=109 min_ns=124175 avg_ns=124687 max_ns=131718
+20:23:21 STAT end ms=216842
+> TIMING 2 40FC1228
+20:23:21 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:22 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 5
+20:23:22 REGS i2c2 cr1=0x00000009 timingr=0x40F51228 presc=4 scldel=15 sdadel=5 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:22 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:23:22 CLEAR ok
+> STAT
+20:23:27 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:23:27 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:23:28 SPAN 0x21 even read cmd_to_stop n=101 min_ns=124025 avg_ns=124675 max_ns=132843
+20:23:28 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=117506 avg_ns=124575 max_ns=128668
+20:23:28 STAT 0x22 cmd=0x00 n=109 data=0 read=109 lost=0
+20:23:28 SPAN 0x22 even read cmd_to_stop n=109 min_ns=119425 avg_ns=124912 max_ns=160900
+20:23:28 STAT end ms=223877
+> TIMING 2 40FC1228
+20:23:28 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:29 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 6
+20:23:29 REGS i2c2 cr1=0x00000009 timingr=0x40F61228 presc=4 scldel=15 sdadel=6 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:29 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:23:29 CLEAR ok
+> STAT
+20:23:34 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:23:34 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:23:35 SPAN 0x21 even read cmd_to_stop n=101 min_ns=117112 avg_ns=124506 max_ns=124762
+20:23:35 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=122256 avg_ns=124681 max_ns=130150
+20:23:35 STAT 0x22 cmd=0x00 n=109 data=0 read=109 lost=0
+20:23:35 SPAN 0x22 even read cmd_to_stop n=109 min_ns=122118 avg_ns=124587 max_ns=125587
+20:23:35 STAT end ms=230924
+> TIMING 2 40FC1228
+20:23:35 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:36 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 7
+20:23:36 REGS i2c2 cr1=0x00000009 timingr=0x40F71228 presc=4 scldel=15 sdadel=7 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:36 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:23:36 CLEAR ok
+> STAT
+20:23:41 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:23:42 STAT 0x21 cmd=0x01 n=100 data=0 read=100 lost=0
+20:23:42 SPAN 0x21 even read cmd_to_stop n=101 min_ns=119706 avg_ns=124575 max_ns=127068
+20:23:42 SPAN 0x21 odd read cmd_to_stop n=100 min_ns=120462 avg_ns=124606 max_ns=127287
+20:23:42 STAT 0x22 cmd=0x00 n=109 data=0 read=109 lost=0
+20:23:42 SPAN 0x22 even read cmd_to_stop n=109 min_ns=121437 avg_ns=125037 max_ns=163781
+20:23:42 STAT end ms=237982
+> TIMING 2 40FC1228
+20:23:42 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:43 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 8
+20:23:43 REGS i2c2 cr1=0x00000009 timingr=0x40F81228 presc=4 scldel=15 sdadel=8 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:43 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:23:43 CLEAR ok
+> STAT
+20:23:49 STAT 0x21 cmd=0x00 n=100 data=0 read=69 lost=31
+20:23:49 STAT 0x21 cmd=0x01 n=100 data=0 read=100 lost=0
+20:23:49 SPAN 0x21 even read cmd_to_stop n=69 min_ns=122912 avg_ns=124637 max_ns=127868
+20:23:49 SPAN 0x21 even lost cmd_to_stop n=31 min_ns=62656 avg_ns=68406 max_ns=73468
+20:23:49 SPAN 0x21 odd read cmd_to_stop n=100 min_ns=120918 avg_ns=124537 max_ns=127937
+20:23:49 STAT 0x22 cmd=0x00 n=111 data=0 read=73 lost=38
+20:23:49 SPAN 0x22 even read cmd_to_stop n=73 min_ns=122256 avg_ns=124862 max_ns=135587
+20:23:49 SPAN 0x22 even lost cmd_to_stop n=38 min_ns=63650 avg_ns=69331 max_ns=110087
+20:23:49 STAT end ms=245222
+> TIMING 2 40FC1228
+20:23:50 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:50 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 9
+20:23:50 REGS i2c2 cr1=0x00000009 timingr=0x40F91228 presc=4 scldel=15 sdadel=9 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:51 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:23:51 CLEAR ok
+> STAT
+20:23:56 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:23:56 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:23:56 SPAN 0x21 even read cmd_to_stop n=101 min_ns=121243 avg_ns=124718 max_ns=131787
+20:23:56 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=121056 avg_ns=124525 max_ns=126656
+20:23:56 STAT 0x22 cmd=0x00 n=108 data=0 read=108 lost=0
+20:23:56 SPAN 0x22 even read cmd_to_stop n=108 min_ns=118793 avg_ns=124812 max_ns=160556
+20:23:56 STAT end ms=252276
+> TIMING 2 40FC1228
+20:23:57 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:57 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 10
+20:23:57 REGS i2c2 cr1=0x00000009 timingr=0x40FA1228 presc=4 scldel=15 sdadel=10 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:23:58 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:23:58 CLEAR ok
+> STAT
+20:24:03 STAT 0x21 cmd=0x00 n=101 data=0 read=14 lost=87
+20:24:03 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:24:03 SPAN 0x21 even read cmd_to_stop n=14 min_ns=124431 avg_ns=124600 max_ns=124756
+20:24:03 SPAN 0x21 even lost cmd_to_stop n=87 min_ns=63150 avg_ns=68350 max_ns=73512
+20:24:03 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=116187 avg_ns=124437 max_ns=125025
+20:24:03 STAT 0x22 cmd=0x00 n=111 data=0 read=10 lost=100
+20:24:03 SPAN 0x22 even read cmd_to_stop n=10 min_ns=122362 avg_ns=124412 max_ns=124756
+20:24:04 SPAN 0x22 even lost cmd_to_stop n=100 min_ns=62531 avg_ns=68868 max_ns=108050
+20:24:04 STAT end ms=259549
+> TIMING 2 40FC1228
+20:24:04 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:04 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 11
+20:24:05 REGS i2c2 cr1=0x000000FD timingr=0x40FB1228 presc=4 scldel=15 sdadel=11 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:05 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:24:05 CLEAR ok
+> STAT
+20:24:10 STAT 0x21 cmd=0x00 n=100 data=0 read=0 lost=100
+20:24:10 STAT 0x21 cmd=0x01 n=100 data=0 read=100 lost=0
+20:24:10 SPAN 0x21 even lost cmd_to_stop n=100 min_ns=64068 avg_ns=68400 max_ns=71000
+20:24:10 SPAN 0x21 odd read cmd_to_stop n=100 min_ns=122737 avg_ns=124606 max_ns=126031
+20:24:10 STAT 0x22 cmd=0x00 n=108 data=0 read=0 lost=107
+20:24:11 SPAN 0x22 even lost cmd_to_stop n=107 min_ns=68006 avg_ns=69418 max_ns=111050
+20:24:11 STAT end ms=266598
+> TIMING 2 40FC1228
+20:24:11 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:11 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 12
+20:24:12 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:12 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:24:12 CLEAR ok
+> STAT
+20:24:17 STAT 0x21 cmd=0x00 n=101 data=0 read=0 lost=101
+20:24:17 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:24:17 SPAN 0x21 even lost cmd_to_stop n=101 min_ns=61706 avg_ns=68381 max_ns=71468
+20:24:17 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=119343 avg_ns=124618 max_ns=128962
+20:24:18 STAT 0x22 cmd=0x00 n=108 data=0 read=0 lost=107
+20:24:18 SPAN 0x22 even lost cmd_to_stop n=107 min_ns=68231 avg_ns=69031 max_ns=86150
+20:24:18 STAT end ms=273663
+> TIMING 2 40FC1228
+20:24:18 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:18 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 13
+20:24:19 REGS i2c2 cr1=0x00000009 timingr=0x40FD1228 presc=4 scldel=15 sdadel=13 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:19 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:24:19 CLEAR ok
+> STAT
+20:24:24 STAT 0x21 cmd=0x00 n=101 data=0 read=0 lost=101
+20:24:24 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:24:24 SPAN 0x21 even lost cmd_to_stop n=101 min_ns=64537 avg_ns=68337 max_ns=71200
+20:24:25 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=119287 avg_ns=124531 max_ns=125843
+20:24:25 STAT 0x22 cmd=0x00 n=109 data=0 read=0 lost=108
+20:24:25 SPAN 0x22 even lost cmd_to_stop n=108 min_ns=65206 avg_ns=69206 max_ns=112662
+20:24:25 STAT end ms=280720
+> TIMING 2 40FC1228
+20:24:25 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:25 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 14
+20:24:26 REGS i2c2 cr1=0x00000009 timingr=0x40FE1228 presc=4 scldel=15 sdadel=14 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:26 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:24:26 CLEAR ok
+> STAT
+20:24:31 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:24:31 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:24:32 SPAN 0x21 even read cmd_to_stop n=101 min_ns=117843 avg_ns=124462 max_ns=126743
+20:24:32 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=118062 avg_ns=124468 max_ns=130487
+20:24:32 STAT 0x22 cmd=0x00 n=108 data=0 read=108 lost=0
+20:24:32 SPAN 0x22 even read cmd_to_stop n=108 min_ns=120750 avg_ns=124543 max_ns=124743
+20:24:32 STAT end ms=287789
+> TIMING 2 40FC1228
+20:24:32 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:33 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 15
+20:24:33 REGS i2c2 cr1=0x00000009 timingr=0x40FF1228 presc=4 scldel=15 sdadel=15 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:33 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:24:33 CLEAR ok
+> STAT
+20:24:38 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:24:38 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:24:39 SPAN 0x21 even read cmd_to_stop n=101 min_ns=114818 avg_ns=124443 max_ns=126993
+20:24:39 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=119368 avg_ns=124731 max_ns=132612
+20:24:39 STAT 0x22 cmd=0x00 n=109 data=0 read=108 lost=0
+20:24:39 SPAN 0x22 even read cmd_to_stop n=108 min_ns=124156 avg_ns=124750 max_ns=129575
+20:24:39 STAT end ms=294840
+> TIMING 2 40FC1228
+20:24:39 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:40 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> PRESC 2 15
+20:24:40 REGS i2c2 cr1=0x00000009 timingr=0xF0FC1228 presc=15 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:40 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 0
+20:24:41 REGS i2c2 cr1=0x00000009 timingr=0xF0F01228 presc=15 scldel=15 sdadel=0 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:41 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:24:41 CLEAR ok
+> STAT
+20:24:46 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:24:46 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:24:46 SPAN 0x21 even read cmd_to_stop n=101 min_ns=120450 avg_ns=124606 max_ns=128475
+20:24:46 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=118975 avg_ns=124775 max_ns=130162
+20:24:46 STAT 0x22 cmd=0x00 n=109 data=0 read=109 lost=0
+20:24:47 SPAN 0x22 even read cmd_to_stop n=109 min_ns=117800 avg_ns=125250 max_ns=166987
+20:24:47 STAT end ms=302560
+> TIMING 2 40FC1228
+20:24:47 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:47 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> PRESC 2 15
+20:24:48 REGS i2c2 cr1=0x00000009 timingr=0xF0FC1228 presc=15 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:48 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> SDADEL 2 15
+20:24:48 REGS i2c2 cr1=0x00000009 timingr=0xF0FF1228 presc=15 scldel=15 sdadel=15 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:49 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> CLEAR
+20:24:49 CLEAR ok
+> STAT
+20:24:54 STAT 0x21 cmd=0x00 n=101 data=0 read=101 lost=0
+20:24:54 STAT 0x21 cmd=0x01 n=101 data=0 read=101 lost=0
+20:24:54 SPAN 0x21 even read cmd_to_stop n=101 min_ns=120012 avg_ns=124556 max_ns=126300
+20:24:54 SPAN 0x21 odd read cmd_to_stop n=101 min_ns=120212 avg_ns=124581 max_ns=130406
+20:24:54 STAT 0x22 cmd=0x00 n=109 data=0 read=109 lost=0
+20:24:54 SPAN 0x22 even read cmd_to_stop n=109 min_ns=119556 avg_ns=124450 max_ns=127156
+20:24:54 STAT end ms=310299
+> TIMING 2 40FC1228
+20:24:55 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:55 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> REGS
+20:24:55 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:24:56 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000

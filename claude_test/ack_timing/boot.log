@@ -1,0 +1,19 @@
+> REGS
+20:19:56 REGS i2c2 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:19:57 REGS i2c3 cr1=0x00000009 timingr=0x40FC1228 presc=4 scldel=15 sdadel=12 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> STAT
+20:19:58 STAT 0x21 cmd=0x00 n=464 data=0 read=0 lost=464
+20:19:58 STAT 0x21 cmd=0x01 n=464 data=0 read=464 lost=0
+20:19:58 SPAN 0x21 even lost cmd_to_stop n=464 min_ns=63175 avg_ns=68837 max_ns=102918
+20:19:58 SPAN 0x21 odd read cmd_to_stop n=464 min_ns=117368 avg_ns=124556 max_ns=131150
+20:19:58 STAT 0x22 cmd=0x00 n=480 data=0 read=0 lost=479
+20:19:58 STAT 0x22 cmd=0x03 n=141 data=141 read=0 lost=0
+20:19:59 SPAN 0x22 even lost cmd_to_stop n=479 min_ns=61531 avg_ns=68343 max_ns=72675
+20:19:59 SPAN 0x22 cmd_to_data n=141 min_ns=296831 avg_ns=301393 max_ns=339081
+20:19:59 STAT 0x60 cmd=0x06 n=144 data=0 read=0 lost=143
+20:19:59 STAT 0x60 cmd=0x07 n=144 data=144 read=0 lost=0
+20:19:59 STAT 0x60 cmd=0x08 n=144 data=0 read=0 lost=144
+20:19:59 STAT 0x60 cmd=0x09 n=144 data=144 read=0 lost=0
+20:19:59 SPAN 0x60 even lost cmd_to_stop n=287 min_ns=61906 avg_ns=68400 max_ns=72143
+20:19:59 SPAN 0x60 cmd_to_data n=288 min_ns=294193 avg_ns=300387 max_ns=308418
+20:19:59 STAT end ms=15447

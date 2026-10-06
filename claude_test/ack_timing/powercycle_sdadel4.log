@@ -1,0 +1,25 @@
+> REGS
+20:30:00 REGS i2c2 cr1=0x00000009 timingr=0x40F41228 presc=4 scldel=15 sdadel=4 sclh=18 scll=40 oar1=0x00008042 oar2=0x00008044
+20:30:00 REGS i2c3 cr1=0x00000009 timingr=0x40F41228 presc=4 scldel=15 sdadel=4 sclh=18 scll=40 oar1=0x000080C0 oar2=0x00000000
+> STAT
+20:30:00 STAT 0x21 cmd=0x00 n=4823 data=0 read=4823 lost=0
+20:30:00 STAT 0x21 cmd=0x01 n=4822 data=0 read=4822 lost=0
+20:30:01 STAT 0x21 cmd=0x03 n=1 data=1 read=0 lost=0
+20:30:01 SPAN 0x21 even read cmd_to_stop n=4823 min_ns=115612 avg_ns=124606 max_ns=139812
+20:30:01 SPAN 0x21 odd read cmd_to_stop n=4822 min_ns=113612 avg_ns=124593 max_ns=132837
+20:30:01 SPAN 0x21 cmd_to_data n=1 min_ns=300537 avg_ns=300537 max_ns=300537
+20:30:01 STAT 0x22 cmd=0x00 n=4835 data=0 read=4835 lost=0
+20:30:01 STAT 0x22 cmd=0x01 n=1 data=0 read=1 lost=0
+20:30:01 STAT 0x22 cmd=0x03 n=3 data=3 read=0 lost=0
+20:30:01 STAT 0x22 cmd=0x07 n=1 data=1 read=0 lost=0
+20:30:01 SPAN 0x22 even read cmd_to_stop n=4835 min_ns=115700 avg_ns=124750 max_ns=167343
+20:30:01 SPAN 0x22 odd read cmd_to_stop n=1 min_ns=124437 avg_ns=124437 max_ns=124437
+20:30:02 SPAN 0x22 cmd_to_data n=4 min_ns=300012 avg_ns=301400 max_ns=305093
+20:30:02 STAT 0x60 cmd=0x01 n=1 data=0 read=1 lost=0
+20:30:02 STAT 0x60 cmd=0x03 n=1 data=1 read=0 lost=0
+20:30:02 STAT 0x60 cmd=0x06 n=1 data=1 read=0 lost=0
+20:30:02 STAT 0x60 cmd=0x07 n=1 data=1 read=0 lost=0
+20:30:02 STAT 0x60 cmd=0x08 n=1 data=1 read=0 lost=0
+20:30:02 STAT 0x60 cmd=0x09 n=1 data=1 read=0 lost=0
+20:30:02 SPAN 0x60 cmd_to_data n=5 min_ns=299750 avg_ns=300287 max_ns=300443
+20:30:02 STAT end ms=617845
