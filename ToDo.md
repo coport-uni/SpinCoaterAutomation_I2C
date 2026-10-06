@@ -662,3 +662,30 @@ Tasks:
 - [x] Compile, then a bench run with the operator present: `PRESS UP
       120` and `PRESS DOWN 120` with `LOG ON`, and check the `KEY ...
       down`/`up` stamps are 120 ms apart
+
+---
+
+## 18. Serve 0x60 alone on the bus (2026-10-06)
+
+Part of GitHub issue #18. The original board had three chips, each
+answering one address. The emulator puts two STM32 controllers on one
+bus through the A4/A5 to D20/D21 jumpers, one of them answering two
+addresses, and losses show on both. The operator chose to isolate the
+dimmer: one controller, one address, nothing else on the wires.
+
+The PCA9306 is wired to D20/D21 (i2c2), so the probe serves 0x60 from
+i2c2 and leaves i2c3 unused, with the jumpers pulled. The mainboard may
+boot differently with 0x21 and 0x22 silent, and may then never write
+the LED selectors; that outcome is inconclusive, not a pass.
+
+Tasks:
+
+- [x] Write `claude_test/led_only/led_only.ino`: PCA9532 target at 0x60
+      on i2c2, every callback recorded in RAM, nothing printed until
+      the capture window closes
+- [x] Compile
+- [x] Bench, operator present, no key pressed: spin coater off, pull
+      the A4/A5 jumpers, upload, power on, collect the dump
+- [x] Compare with `lamp_trace/trace_diag.log`: do `LS2` and `LS0` now
+      arrive with their data bytes?
+- [x] Restore the jumpers and `pca9555_emu_gui` afterwards
