@@ -1,0 +1,1545 @@
+/**
+ * @file pca9555_emu_gui_mk2.ino
+ * @brief Stand in for the Laurell keypad board on the spin coater's
+ *        I2C bus and serve the whole panel to keypad_gui.py, without
+ *        losing the mainboard's transfers.
+ *
+ * Mark 2 of firmware/pca9555_emu_gui. The only functional change is the
+ * targets' data-hold delay. The Zephyr driver computes TIMINGR for the
+ * devicetree's 400 kHz, which puts SDADEL at 12, about 375 ns after SCL
+ * falls. claude_test/ack_timing showed on the bench (2026-10-06) that
+ * the mainboard then reads a NACK after every even command byte: the
+ * LS0/LS2 lamp data and the port-0 key reads never arrive. SDADEL 0 to
+ * 7 lost nothing, and 11 to 13 lost everything. This sketch sets
+ * SDADEL 4, 125 ns, on both controllers after registering the targets,
+ * because i2c_target_register recomputes TIMINGR, and checks once a
+ * second that it is still in place. Why the 250 to 410 ns window fails
+ * is not explained; the fix is measured, not derived.
+ *
+ * NOT YET VERIFIED as a whole. The fix was verified in the probe, not
+ * in this sketch. Per CLAUDE.md section 5.1 this file must not be
+ * merged until a bench run with the operator present has produced
+ * output to paste into the PR.
+ *
+ * The mainboard is the only master on this bus. It polls the keypad
+ * board's two PCA9555 expanders for key state and writes the PCA9532
+ * dimmer to light the keys that are currently pressable. With the
+ * keypad unplugged, this sketch answers all three addresses:
+ *
+ *   0x21  PCA9555, 16 keys          i2c2 own-address 1  (D20, D21)
+ *   0x22  PCA9555, 2 keys + 2 LEDs  i2c2 own-address 2  (D20, D21)
+ *   0x60  PCA9532, 16 key LEDs      i2c3 own-address 1  (A4, A5)
+ *
+ * Two controllers are enough because the STM32 I2C peripheral has two
+ * own-address registers; claude_test/dual_target proved both halves of
+ * that on this board. The jumpers A4 to D20 and A5 to D21 put both
+ * controllers on the one physical bus, which reaches the mainboard
+ * through a PCA9306 translator: VREF1 on the 3.3 V side, VREF2 on the
+ * 5 V side, EN high, and a pull-up on each side of each line. The
+ * PCA9306 is a pass gate, not a driver, so without those pull-ups
+ * neither side ever reaches a high level.
+ *
+ * Every address is served by raw Zephyr i2c_target_callbacks rather
+ * than by the Arduino Wire wrapper. Wire reports a write only at STOP,
+ * so for the register-write-then-repeated-start-read sequence that a
+ * PCA9555 read uses, its onRequest would fire before the register
+ * pointer had arrived. The Zephyr callbacks are byte-by-byte and see
+ * the pointer in time. Wire.begin() is still called on both buses: it
+ * only re-applies the pinctrl state, it does not claim the bus.
+ *
+ * All 18 keys of the panel can be pressed. The first bench run proved
+ * the path with the two arrows only; the panel was opened up once that
+ * had been verified, because a keypad emulator that serves half a
+ * keypad is not one. What stands between a key press and harm is what
+ * always stood there: the machine's own interlocks, the lid, and the
+ * mains switch. With the real keypad unplugged there is no physical
+ * STOP button, so the mains switch is the stop for every run and
+ * belongs within reach of whoever is driving this.
+ *
+ * Host protocol on Monitor, one command per line:
+ *   PRESS <key> [ms]   Hold one key, default 100 ms, 20 to 1000
+ *   RELEASE            Release early
+ *   KEYS               List every key name
+ *   STATE              Print the register files and the INT level
+ *   LOG ON | LOG OFF   Log every read, not just the ones that changed
+ *   TRACE ON | OFF     Log every callback on 0x22 and 0x60, raw, and
+ *                      on 0x21 too while hushed
+ *   HUSH <s>           Send nothing on Monitor for s seconds, 1 to
+ *                      600, then print everything held meanwhile
+ *   HELP               List the commands
+ *
+ * Key names: PGUP PGDN FWD RIGHT F2 F1 VACUUM SELECT DOWN REV LEFT
+ * PAUSE STOP START INFO UP EDIT RUN
+ *
+ * Output lines:
+ *   BOOT pca9555_emu_gui_mk2
+ *   TIMING <bus> timingr=0x<8 hex> presc=<n> sdadel=<n> applied=<n>
+ *                                       at boot, in STATE, and when the
+ *                                       check finds SDADEL rewritten
+ *   WARN <bus> presc=<n> ...            PRESC is not the one SDADEL 4
+ *                                       was measured with; left alone
+ *   REG addr=0x<nn> rc=<n>              one per registered address
+ *   READY
+ *   RX 0x<nn> reg=0x<nn> data=0x<nn> ms=<n>    mainboard wrote
+ *   TX 0x<nn> reg=0x<nn> data=0x<nn> ms=<n>    mainboard read
+ *   LEDS <16 chars> psc0=0x<nn> pwm0=0x<nn> psc1=0x<nn> pwm1=0x<nn>
+ *        ms=<n>                         . off  * on  0 pwm0  1 pwm1
+ *   LED22 out=0x<nn> cfg=0x<nn> ms=<n>  0x22 port 1, EDIT and RUN lamps
+ *   WREQ | RREQ | STOP 0x<nn> ms=<n>    TRACE ON only: write start,
+ *                                       read start, end of transfer
+ *   CMD 0x<nn> reg=0x<nn> data=0x<nn> ms=<n>   TRACE ON only: the
+ *                                       command byte as received
+ *   ERR 0x<nn> code=<n> ms=<n>          bus error or lost arbitration,
+ *                                       first target on that controller
+ *   POLL ms=<n> rx21=<n> tx21=<n> ... drop=<n>
+ *   KEY <name> <down|up> ms=<n>
+ *   STATE ...
+ *   OK | ERR raw=[<line>]
+ */
+
+#include <Arduino_RouterBridge.h>
+#include <Wire.h>
+
+#include <stdlib.h>
+#include <string.h>
+
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/i2c.h>
+#include <zephyr/kernel.h>
+
+/** Serial line speed shared by every sketch in this project. */
+#define SERIAL_BAUD 115200
+
+/** Retry delay while the Monitor link is not up yet, ms. */
+#define MONITOR_RETRY_MS 500
+
+/** The three addresses the keypad board presents to the mainboard. */
+#define ADDR_BTN_A 0x21
+#define ADDR_BTN_B 0x22
+#define ADDR_LED 0x60
+
+/** Index of each address in the per-device arrays. */
+#define DEV_BTN_A 0
+#define DEV_BTN_B 1
+#define DEV_LED 2
+#define DEV_COUNT 3
+
+/** X1 pin 5, the expanders' shared open-drain interrupt line. */
+#define INT_PIN 2
+
+/**
+ * Whether INT is physically wired through a translator.
+ *
+ * A PCA9306 carries two channels, SDA and SCL, and has none left for
+ * INT. Wiring INT straight across would put the mainboard's 5 V pull-up
+ * on D2 whenever the line is released, which the UNO Q's pin does not
+ * tolerate, so the default is to leave it unconnected and let the
+ * mainboard poll. Bench run 1 shows from the POLL counters whether it
+ * polls on its own; only if it does not does INT need a third channel,
+ * and this may then be set to 1.
+ */
+#define INT_WIRED 0
+
+/* PCA9555 register map. The pointer toggles within a pair, so the
+ * eight registers behave as four two-register banks. */
+#define PCA9555_INPUT_0 0x00
+#define PCA9555_INPUT_1 0x01
+#define PCA9555_OUTPUT_0 0x02
+#define PCA9555_OUTPUT_1 0x03
+#define PCA9555_POLARITY_0 0x04
+#define PCA9555_CONFIG_0 0x06
+#define PCA9555_CONFIG_1 0x07
+#define PCA9555_REG_MASK 0x07
+#define PCA9555_PORT_COUNT 2
+
+/** Power-on reset values. Every pin is an input, nothing inverted. */
+#define PCA9555_POR_OUTPUT 0xFF
+#define PCA9555_POR_POLARITY 0x00
+#define PCA9555_POR_CONFIG 0xFF
+
+/** Key state with nothing pressed. The keys are active low. */
+#define KEYS_RELEASED 0xFF
+
+/** Port of 0x22 that carries the EDIT MODE and RUN MODE lamps. */
+#define LAMP22_PORT 1
+
+/* PCA9532 register map. Bit 4 of the command byte asks for
+ * auto-increment, and the pointer then wraps at the last register. */
+#define PCA9532_INPUT_0 0x00
+#define PCA9532_INPUT_1 0x01
+#define PCA9532_PSC0 0x02
+#define PCA9532_PWM0 0x03
+#define PCA9532_PSC1 0x04
+#define PCA9532_PWM1 0x05
+#define PCA9532_LS0 0x06
+#define PCA9532_REG_COUNT 10
+#define PCA9532_REG_MASK 0x0F
+#define PCA9532_AUTO_INCREMENT 0x10
+
+/** Power-on reset values from the PCA9532 datasheet. */
+#define PCA9532_POR_PSC 0xFF
+#define PCA9532_POR_PWM 0x80
+#define PCA9532_POR_LS 0x00
+
+/** LED selector field, two bits per channel. */
+#define LS_BITS_PER_LED 2
+#define LS_LEDS_PER_REG 4
+#define LS_FIELD_MASK 0x03
+#define LS_OFF 0
+#define LS_ON 1
+#define LS_PWM0 2
+#define LS_PWM1 3
+
+/** Number of LED channels the PCA9532 drives. */
+#define LED_CHANNEL_COUNT 16
+
+/** Number of keys on the panel, from docs/button_map.json. */
+#define KEY_COUNT 18
+
+/**
+ * @brief One key of the panel and the bit it drives.
+ *
+ * The names are the host protocol's, kept short so a command line stays
+ * readable; docs/button_map.json holds the long form.
+ */
+typedef struct {
+    const char *name;
+    uint8_t dev;
+    uint8_t port;
+    uint8_t bit;
+} key_entry_t;
+
+/**
+ * The whole panel. Every key is active low: pressing it drives its bit
+ * to 0 and holds it there until the hold time runs out.
+ *
+ * STOP is here like any other key, and deliberately so. A keypad whose
+ * stop button is special-cased is worse than one where it is not. The
+ * mains switch remains the real stop, because this board can fail in
+ * ways that no firmware path can answer for.
+ */
+static const key_entry_t KEYS[KEY_COUNT] = {
+    {"PGUP", DEV_BTN_A, 0, 0},   {"PGDN", DEV_BTN_A, 0, 1},
+    {"FWD", DEV_BTN_A, 0, 2},    {"RIGHT", DEV_BTN_A, 0, 3},
+    {"F2", DEV_BTN_A, 0, 4},     {"F1", DEV_BTN_A, 0, 5},
+    {"VACUUM", DEV_BTN_A, 0, 6}, {"SELECT", DEV_BTN_A, 0, 7},
+    {"DOWN", DEV_BTN_A, 1, 0},   {"REV", DEV_BTN_A, 1, 1},
+    {"LEFT", DEV_BTN_A, 1, 2},   {"PAUSE", DEV_BTN_A, 1, 3},
+    {"STOP", DEV_BTN_A, 1, 4},   {"START", DEV_BTN_A, 1, 5},
+    {"INFO", DEV_BTN_A, 1, 6},   {"UP", DEV_BTN_A, 1, 7},
+    {"EDIT", DEV_BTN_B, 0, 0},   {"RUN", DEV_BTN_B, 0, 1},
+};
+
+/** Hold time for an injected key press, ms. */
+#define PRESS_HOLD_DEFAULT_MS 100
+#define PRESS_HOLD_MIN_MS 20
+#define PRESS_HOLD_MAX_MS 1000
+
+/** Longest HUSH window, s, and the ms in one s. */
+#define HUSH_MAX_S 600
+#define MS_PER_S 1000
+
+/** Nothing is being pressed. */
+#define PRESS_NONE 0xFF
+
+/** Transaction log ring. The size must stay a power of two. */
+#define LOG_RING_SIZE 8192
+#define LOG_RING_MASK (LOG_RING_SIZE - 1)
+
+/** Event kinds in the ring. */
+#define EV_READ 0
+#define EV_WRITE 1
+#define EV_CMD 2
+#define EV_WREQ 3
+#define EV_RREQ 4
+#define EV_STOP 5
+#define EV_ERR 6
+
+/* Lines drain_log() may print per pass of loop(), so that a full ring
+ * cannot keep the host commands waiting. */
+#define DRAIN_MAX_LINES 32
+
+/* The first reads after boot are logged in full so the mainboard's
+ * polling order is recorded once; after that only changes are kept,
+ * which keeps the link usable during a long run. */
+#define LOG_READ_BURST 300
+
+/** Period of the traffic summary line, ms. */
+#define POLL_REPORT_MS 1000
+
+/** Longest host command line accepted, including the terminator. */
+#define LINE_BUF_SIZE 64
+
+/** Radix used for the decimal arguments of a host command. */
+#define DECIMAL_BASE 10
+
+/* STM32 I2C v2 registers used for the data-hold fix, RM0456. */
+#define I2C_REG_CR1 0x00
+#define I2C_REG_TIMINGR 0x10
+#define I2C_REG_ISR 0x18
+#define I2C_CR1_PE (1u << 0)
+#define I2C_ISR_BUSY (1u << 15)
+#define TIMINGR_PRESC_SHIFT 28
+#define TIMINGR_SDADEL_SHIFT 16
+#define TIMINGR_FIELD_MASK 0x0Fu
+
+/**
+ * SDADEL that lost nothing on the bench, and the PRESC it was measured
+ * with. At a 160 MHz kernel clock, PRESC 4 makes one step 31.25 ns, so
+ * this is 125 ns, in the middle of the 0 to 7 band that lost nothing.
+ */
+#define TARGET_SDADEL 4
+#define EXPECTED_PRESC 4
+
+/** PE must stay low for three APB clocks; these reads cover that. */
+#define PE_OFF_READS 8
+
+/** Attempts to find the bus idle before giving up for this round. */
+#define IDLE_WAIT_TRIES 200000
+
+/** Period of the check that SDADEL is still in place, ms. */
+#define TIMING_CHECK_MS 1000
+
+/** Number of I2C controllers the sketch uses. */
+#define BUS_COUNT 2
+
+/**
+ * @brief One emulated PCA9555.
+ *
+ * The fields are volatile because the I2C callbacks run in interrupt
+ * context while loop() presses keys and prints the log.
+ */
+typedef struct {
+    volatile uint8_t keys[PCA9555_PORT_COUNT];
+    volatile uint8_t output[PCA9555_PORT_COUNT];
+    volatile uint8_t polarity[PCA9555_PORT_COUNT];
+    volatile uint8_t config[PCA9555_PORT_COUNT];
+    volatile uint8_t pointer;
+    volatile bool expect_pointer;
+    volatile bool int_pending;
+} pca9555_state_t;
+
+/**
+ * @brief The emulated PCA9532 LED dimmer.
+ */
+typedef struct {
+    volatile uint8_t reg[PCA9532_REG_COUNT];
+    volatile uint8_t pointer;
+    volatile bool auto_increment;
+    volatile bool expect_pointer;
+    volatile bool lamps_dirty;
+} pca9532_state_t;
+
+/**
+ * @brief One logged byte of bus traffic.
+ */
+typedef struct {
+    uint32_t ms;
+    uint8_t kind;
+    uint8_t addr;
+    uint8_t reg;
+    uint8_t data;
+} log_event_t;
+
+/** The two button expanders, 0x21 first. */
+static pca9555_state_t btn[2];
+
+/** The LED dimmer at 0x60. */
+static pca9532_state_t led;
+
+/* EDIT MODE and RUN MODE are lit from 0x22 port 1, not from the
+ * dimmer. The panel needs that port's state as well as the dimmer's, and
+ * it needs it on request: a panel opened after the mainboard's power-on
+ * write would otherwise never learn of it. */
+static volatile bool lamps22_dirty = false;
+
+/** Single producer in the callbacks, single consumer in loop(). */
+static volatile log_event_t log_ring[LOG_RING_SIZE];
+static volatile uint16_t log_head = 0;
+static volatile uint16_t log_tail = 0;
+static volatile uint32_t log_dropped = 0;
+static volatile uint32_t log_reads_seen = 0;
+static volatile bool log_all_reads = false;
+
+/* The data-byte log above cannot show a command byte, or a transfer
+ * that carries none, which is what is needed to find the LS0 and LS2
+ * writes the mainboard is never seen making. The raw trace records
+ * every callback for 0x22 and 0x60, and for 0x21 as well while hushed;
+ * outside a HUSH window the 50 ms poll of 0x21 would flood the link. */
+static volatile bool trace_raw = false;
+
+/** Last byte handed back per device and register, for change detection. */
+static volatile uint8_t tx_last[DEV_COUNT][PCA9532_REG_COUNT];
+
+/** Traffic counters, reported once a second. */
+static volatile uint32_t rx_count[DEV_COUNT];
+static volatile uint32_t tx_count[DEV_COUNT];
+static uint32_t rx_reported[DEV_COUNT];
+static uint32_t tx_reported[DEV_COUNT];
+static uint32_t poll_report_at = 0;
+
+/* While hushed, loop() sends nothing on Monitor and the ring holds
+ * every event until the window ends. A trace printed live keeps loop()
+ * so busy that host commands go unanswered and the mainboard is left
+ * retrying 0x22; this window records the bus with the link quiet. The
+ * flag is read from the I2C callbacks, hence volatile. */
+static volatile bool hushed = false;
+static uint32_t hush_until_ms = 0;
+
+/** The key press currently being held, or PRESS_NONE. */
+static uint8_t press_dev = PRESS_NONE;
+static uint8_t press_port = 0;
+static uint8_t press_bit = 0;
+static const char *press_name = "none";
+
+/* The release is timed by a kernel timer, not by loop(). A pass of
+ * loop() can take seconds while the log is busy, and a key held that
+ * much longer than asked is a hazard on START, FWD, REV or VACUUM. The
+ * timer restores the bit on time; loop() only reports it afterwards. */
+static struct k_timer release_timer;
+static volatile bool release_due = false;
+static volatile uint32_t release_ms = 0;
+
+/** Host command line assembly. */
+static char line_buf[LINE_BUF_SIZE];
+static uint8_t line_len = 0;
+
+/** Registration state, one entry per address. */
+static struct i2c_target_callbacks target_cb[DEV_COUNT];
+static struct i2c_target_config target_cfg[DEV_COUNT];
+static int target_rc[DEV_COUNT];
+
+/** The two controllers, by name and register base, for the fix. */
+static const char *const BUS_NAME[BUS_COUNT] = {"i2c2", "i2c3"};
+static const uintptr_t BUS_BASE[BUS_COUNT] = {
+    DT_REG_ADDR(DT_NODELABEL(i2c2)),
+    DT_REG_ADDR(DT_NODELABEL(i2c3)),
+};
+
+/** Outcome of one attempt to put SDADEL in place. */
+typedef enum {
+    TIMING_IN_PLACE,
+    TIMING_APPLIED,
+    TIMING_BUS_BUSY,
+    TIMING_WRONG_PRESC,
+} timing_result_t;
+
+static uint32_t timing_applied[BUS_COUNT];
+static bool timing_warned[BUS_COUNT];
+static uint32_t timing_check_at = 0;
+
+/** The two controllers that carry the three addresses. */
+static const struct device *const btn_bus =
+    DEVICE_DT_GET(DT_NODELABEL(i2c2));
+static const struct device *const led_bus =
+    DEVICE_DT_GET(DT_NODELABEL(i2c3));
+
+/**
+ * @brief Map a 7 bit address to its index in the per-device arrays.
+ * @param addr Address taken from the Zephyr target config.
+ * @return DEV_BTN_A, DEV_BTN_B, DEV_LED, or DEV_COUNT if unknown.
+ */
+static uint8_t dev_index(uint16_t addr) {
+    if (addr == ADDR_BTN_A) {
+        return DEV_BTN_A;
+    }
+    if (addr == ADDR_BTN_B) {
+        return DEV_BTN_B;
+    }
+    if (addr == ADDR_LED) {
+        return DEV_LED;
+    }
+    return DEV_COUNT;
+}
+
+/**
+ * @brief Append one event to the log ring.
+ *
+ * Called from interrupt context. A full ring drops the event and bumps
+ * a counter rather than blocking the bus.
+ *
+ * The two button expanders sit on i2c2 and the dimmer on i2c3, so this
+ * has two independent interrupt sources as producers, not one. If their
+ * priorities differ, one can preempt the other between the head test
+ * and the head store and both writers then claim the same slot, which
+ * would quietly corrupt the stage 2 log. Interrupts are locked across
+ * the update to make the claim atomic; the body is a handful of stores
+ * and never waits on the bus.
+ *
+ * @param kind One of the EV_ event kinds.
+ * @param addr Address that was addressed.
+ * @param reg Register the byte belonged to.
+ * @param data The byte itself.
+ */
+static void log_push(uint8_t kind, uint8_t addr, uint8_t reg,
+                     uint8_t data) {
+    unsigned int key = irq_lock();
+    uint16_t next = (uint16_t)((log_head + 1) & LOG_RING_MASK);
+
+    if (next == log_tail) {
+        log_dropped++;
+        irq_unlock(key);
+        return;
+    }
+    log_ring[log_head].ms = millis();
+    log_ring[log_head].kind = kind;
+    log_ring[log_head].addr = addr;
+    log_ring[log_head].reg = reg;
+    log_ring[log_head].data = data;
+    log_head = next;
+    irq_unlock(key);
+}
+
+/**
+ * @brief Whether the raw trace covers this device right now.
+ * @param idx Device index.
+ * @return true when its callbacks should be recorded.
+ */
+static bool trace_wanted(uint8_t idx) {
+    return trace_raw && (idx != DEV_BTN_A || hushed);
+}
+
+/**
+ * @brief Record one raw callback while the trace is on.
+ * @param kind EV_CMD, EV_WREQ, EV_RREQ or EV_STOP.
+ * @param idx Device index; 0x21 is traced only while hushed.
+ * @param addr Address that was addressed.
+ * @param reg Register pointer after the event.
+ * @param data Byte received, for EV_CMD.
+ */
+static void trace_push(uint8_t kind, uint8_t idx, uint8_t addr,
+                       uint8_t reg, uint8_t data) {
+    if (trace_wanted(idx)) {
+        log_push(kind, addr, reg, data);
+    }
+}
+
+/**
+ * @brief Build a PCA9555 input port byte.
+ *
+ * A real expander reports the pin level, which is the key state for an
+ * input pin and the output latch for an output pin, with the polarity
+ * inversion register applied on top.
+ *
+ * @param dev Expander to read.
+ * @param port 0 or 1.
+ * @return The byte the mainboard should see.
+ */
+static uint8_t pca9555_input(const pca9555_state_t *dev, uint8_t port) {
+    uint8_t cfg = dev->config[port];
+    uint8_t pins = (uint8_t)((dev->keys[port] & cfg)
+                             | (dev->output[port] & (uint8_t)~cfg));
+
+    return (uint8_t)(pins ^ dev->polarity[port]);
+}
+
+/**
+ * @brief Read one PCA9555 register.
+ * @param dev Expander to read.
+ * @param reg Register index, already masked to 0x07.
+ * @return Register contents.
+ */
+static uint8_t pca9555_read(pca9555_state_t *dev, uint8_t reg) {
+    uint8_t port = (uint8_t)(reg & 0x01);
+
+    switch (reg & 0x06) {
+    case PCA9555_INPUT_0:
+        /* Reading an input port clears the interrupt, exactly as the
+         * real part does. */
+        dev->int_pending = false;
+        return pca9555_input(dev, port);
+    case PCA9555_OUTPUT_0:
+        return dev->output[port];
+    case PCA9555_POLARITY_0:
+        return dev->polarity[port];
+    default:
+        return dev->config[port];
+    }
+}
+
+/**
+ * @brief Write one PCA9555 register, ignoring the read-only ports.
+ * @param dev Expander to write.
+ * @param reg Register index, already masked to 0x07.
+ * @param val Byte received from the mainboard.
+ */
+static void pca9555_write(pca9555_state_t *dev, uint8_t reg,
+                          uint8_t val) {
+    uint8_t port = (uint8_t)(reg & 0x01);
+
+    switch (reg & 0x06) {
+    case PCA9555_OUTPUT_0:
+        dev->output[port] = val;
+        break;
+    case PCA9555_POLARITY_0:
+        dev->polarity[port] = val;
+        break;
+    case PCA9555_CONFIG_0:
+        dev->config[port] = val;
+        break;
+    default:
+        /* The input ports are read-only. */
+        break;
+    }
+}
+
+/**
+ * @brief Build a PCA9532 input port byte from the LED selectors.
+ *
+ * An LED pin is pulled low when its channel is driven and released
+ * when the channel is off. The blink modes are reported as driven,
+ * which is an approximation; the mainboard is not expected to read
+ * these registers at all.
+ *
+ * @param port 0 for channels 0 to 7, 1 for channels 8 to 15.
+ * @return The byte the mainboard should see.
+ */
+static uint8_t pca9532_input(uint8_t port) {
+    uint8_t value = 0;
+    uint8_t i = 0;
+
+    for (i = 0; i < 8; i++) {
+        uint8_t ch = (uint8_t)(port * 8 + i);
+        uint8_t ls = led.reg[PCA9532_LS0 + ch / LS_LEDS_PER_REG];
+        uint8_t shift =
+            (uint8_t)((ch % LS_LEDS_PER_REG) * LS_BITS_PER_LED);
+
+        if (((ls >> shift) & LS_FIELD_MASK) == LS_OFF) {
+            value |= (uint8_t)(1u << i);
+        }
+    }
+    return value;
+}
+
+/**
+ * @brief Read one PCA9532 register.
+ * @param reg Register index, already reduced to 0 through 9.
+ * @return Register contents.
+ */
+static uint8_t pca9532_read(uint8_t reg) {
+    if (reg == PCA9532_INPUT_0 || reg == PCA9532_INPUT_1) {
+        return pca9532_input((uint8_t)(reg - PCA9532_INPUT_0));
+    }
+    return led.reg[reg];
+}
+
+/**
+ * @brief Advance a register pointer after one byte has moved.
+ *
+ * A PCA9555 toggles between the two registers of the addressed pair. A
+ * PCA9532 increments and wraps, but only when the command byte asked
+ * for it.
+ *
+ * @param idx Device index.
+ */
+static void pointer_advance(uint8_t idx) {
+    if (idx == DEV_LED) {
+        if (led.auto_increment) {
+            led.pointer =
+                (uint8_t)((led.pointer + 1) % PCA9532_REG_COUNT);
+        }
+        return;
+    }
+    btn[idx].pointer = (uint8_t)(btn[idx].pointer ^ 0x01);
+}
+
+/**
+ * @brief Zephyr callback, the mainboard has started writing to us.
+ * @param config Target being addressed.
+ * @return 0 to acknowledge.
+ */
+static int on_write_requested(struct i2c_target_config *config) {
+    uint8_t idx = dev_index(config->address);
+
+    if (idx == DEV_COUNT) {
+        return -EIO;
+    }
+    if (idx == DEV_LED) {
+        led.expect_pointer = true;
+    } else {
+        btn[idx].expect_pointer = true;
+    }
+    trace_push(EV_WREQ, idx, (uint8_t)config->address, 0, 0);
+    return 0;
+}
+
+/**
+ * @brief Zephyr callback, a byte arrived from the mainboard.
+ *
+ * The first byte of a write is the command byte and sets the register
+ * pointer; the bytes after it are register data.
+ *
+ * @param config Target being addressed.
+ * @param val Byte received.
+ * @return 0 to acknowledge.
+ */
+static int on_write_received(struct i2c_target_config *config,
+                             uint8_t val) {
+    uint8_t idx = dev_index(config->address);
+    uint8_t reg = 0;
+
+    if (idx == DEV_COUNT) {
+        return -EIO;
+    }
+
+    if (idx == DEV_LED) {
+        if (led.expect_pointer) {
+            led.auto_increment =
+                ((val & PCA9532_AUTO_INCREMENT) != 0);
+            led.pointer =
+                (uint8_t)((val & PCA9532_REG_MASK) % PCA9532_REG_COUNT);
+            led.expect_pointer = false;
+            trace_push(EV_CMD, idx, ADDR_LED, led.pointer, val);
+            return 0;
+        }
+        reg = led.pointer;
+        if (reg >= PCA9532_PSC0) {
+            /* The prescalers and duty cycles matter as much as the
+             * selectors: a channel on a 0 % PWM is dark. */
+            led.reg[reg] = val;
+            led.lamps_dirty = true;
+        }
+        log_push(EV_WRITE, ADDR_LED, reg, val);
+        rx_count[DEV_LED]++;
+        pointer_advance(DEV_LED);
+        return 0;
+    }
+
+    if (btn[idx].expect_pointer) {
+        btn[idx].pointer = (uint8_t)(val & PCA9555_REG_MASK);
+        btn[idx].expect_pointer = false;
+        trace_push(EV_CMD, idx, (uint8_t)config->address,
+                   btn[idx].pointer, val);
+        return 0;
+    }
+    reg = btn[idx].pointer;
+    pca9555_write(&btn[idx], reg, val);
+    if (idx == DEV_BTN_B
+        && (reg == PCA9555_OUTPUT_1 || reg == PCA9555_CONFIG_1)) {
+        lamps22_dirty = true;
+    }
+    log_push(EV_WRITE, (uint8_t)config->address, reg, val);
+    rx_count[idx]++;
+    pointer_advance(idx);
+    return 0;
+}
+
+/**
+ * @brief Serve one byte to the mainboard and note it in the log.
+ * @param idx Device index.
+ * @param addr Address being read, for the log line.
+ * @param val Receives the byte to transmit.
+ * @return 0 to continue the transfer.
+ */
+static int serve_read(uint8_t idx, uint8_t addr, uint8_t *val) {
+    uint8_t reg = 0;
+    uint8_t data = 0;
+
+    if (idx == DEV_LED) {
+        reg = led.pointer;
+        data = pca9532_read(reg);
+    } else {
+        reg = btn[idx].pointer;
+        data = pca9555_read(&btn[idx], reg);
+    }
+
+    *val = data;
+    tx_count[idx]++;
+
+    /* Everything is logged for the first few hundred reads so the
+     * polling order is on record, then only the bytes that changed. */
+    if (log_all_reads || log_reads_seen < LOG_READ_BURST
+        || trace_wanted(idx)
+        || tx_last[idx][reg] != data) {
+        log_push(EV_READ, addr, reg, data);
+    }
+    tx_last[idx][reg] = data;
+    log_reads_seen++;
+
+    pointer_advance(idx);
+    return 0;
+}
+
+/**
+ * @brief Zephyr callback, the mainboard wants the first byte.
+ * @param config Target being addressed.
+ * @param val Receives the byte to transmit.
+ * @return 0 to acknowledge.
+ */
+static int on_read_requested(struct i2c_target_config *config,
+                             uint8_t *val) {
+    uint8_t idx = dev_index(config->address);
+
+    if (idx == DEV_COUNT) {
+        return -EIO;
+    }
+    trace_push(EV_RREQ, idx, (uint8_t)config->address, 0, 0);
+    return serve_read(idx, (uint8_t)config->address, val);
+}
+
+/**
+ * @brief Zephyr callback, the mainboard wants another byte.
+ * @param config Target being addressed.
+ * @param val Receives the byte to transmit.
+ * @return 0 to continue.
+ */
+static int on_read_processed(struct i2c_target_config *config,
+                             uint8_t *val) {
+    uint8_t idx = dev_index(config->address);
+
+    if (idx == DEV_COUNT) {
+        return -EIO;
+    }
+    return serve_read(idx, (uint8_t)config->address, val);
+}
+
+/**
+ * @brief Zephyr callback, the transaction ended.
+ * @param config Target being addressed.
+ * @return 0 always.
+ */
+static int on_stop(struct i2c_target_config *config) {
+    uint8_t idx = dev_index(config->address);
+
+    if (idx == DEV_COUNT) {
+        return 0;
+    }
+    if (idx == DEV_LED) {
+        led.expect_pointer = true;
+    } else {
+        btn[idx].expect_pointer = true;
+    }
+    trace_push(EV_STOP, idx, (uint8_t)config->address, 0, 0);
+    return 0;
+}
+
+/**
+ * @brief Zephyr callback, the controller saw a bus error or lost
+ *        arbitration while acting as a target.
+ *
+ * Logged always, trace or not: a bus error mid-byte is the leading
+ * explanation for the LS0 and LS2 data bytes that never arrive. The
+ * driver reports every error on a controller through its first target,
+ * so an error on i2c2 shows as 0x21 whichever address was being served.
+ *
+ * @param config First target registered on the controller.
+ * @param error_code Zephyr's reason, 1 arbitration, 4 generic (BERR).
+ */
+static void on_error(struct i2c_target_config *config,
+                     enum i2c_error_reason error_code) {
+    log_push(EV_ERR, (uint8_t)config->address, 0, (uint8_t)error_code);
+}
+
+/**
+ * @brief Register one address as an I2C target.
+ * @param idx Device index, which also indexes the config arrays.
+ * @param bus Controller that should answer for it.
+ * @param addr 7 bit address.
+ */
+static void register_target(uint8_t idx, const struct device *bus,
+                            uint8_t addr) {
+    /* The fields are assigned rather than brace-initialised, because
+     * the callback struct grows extra members when
+     * CONFIG_I2C_TARGET_BUFFER_MODE is set, as it is in this build.
+     * Leaving those NULL keeps the driver on the byte-at-a-time path,
+     * which is the only one that sees the register pointer in time. */
+    target_cb[idx].write_requested = on_write_requested;
+    target_cb[idx].read_requested = on_read_requested;
+    target_cb[idx].write_received = on_write_received;
+    target_cb[idx].read_processed = on_read_processed;
+    target_cb[idx].stop = on_stop;
+    target_cb[idx].error = on_error;
+
+    target_cfg[idx].address = addr;
+    target_cfg[idx].callbacks = &target_cb[idx];
+
+    target_rc[idx] = i2c_target_register(bus, &target_cfg[idx]);
+
+    Monitor.print("REG addr=0x");
+    Monitor.print(addr, HEX);
+    Monitor.print(" rc=");
+    Monitor.println(target_rc[idx]);
+}
+
+/**
+ * @brief Drive the shared interrupt line from the pending flags.
+ *
+ * The real line is open drain and wired to both expanders, so it is
+ * pulled low while either has an unread change and released, never
+ * driven high, otherwise.
+ */
+static void int_apply(void) {
+#if INT_WIRED
+    if (btn[DEV_BTN_A].int_pending || btn[DEV_BTN_B].int_pending) {
+        pinMode(INT_PIN, OUTPUT);
+        digitalWrite(INT_PIN, LOW);
+    } else {
+        pinMode(INT_PIN, INPUT);
+    }
+#endif
+}
+
+/**
+ * @brief Print one byte as 0xNN with the leading zero kept.
+ * @param value Byte to print.
+ */
+static void print_hex8(uint8_t value) {
+    Monitor.print("0x");
+    if (value < 0x10) {
+        Monitor.print('0');
+    }
+    Monitor.print(value, HEX);
+}
+
+/**
+ * @brief Print the LED selector registers as one readable row.
+ *
+ * Channel n of the PCA9532 is the LED of the key at 0x21 bit n, so
+ * this row is the mainboard's own list of the keys it will accept
+ * right now.
+ */
+static void print_leds(void) {
+    uint8_t ch = 0;
+
+    Monitor.print("LEDS ");
+    for (ch = 0; ch < LED_CHANNEL_COUNT; ch++) {
+        uint8_t ls = led.reg[PCA9532_LS0 + ch / LS_LEDS_PER_REG];
+        uint8_t shift =
+            (uint8_t)((ch % LS_LEDS_PER_REG) * LS_BITS_PER_LED);
+
+        switch ((ls >> shift) & LS_FIELD_MASK) {
+        case LS_ON:
+            Monitor.print('*');
+            break;
+        case LS_PWM0:
+            Monitor.print('0');
+            break;
+        case LS_PWM1:
+            Monitor.print('1');
+            break;
+        default:
+            Monitor.print('.');
+            break;
+        }
+    }
+    Monitor.print(" psc0=");
+    print_hex8(led.reg[PCA9532_PSC0]);
+    Monitor.print(" pwm0=");
+    print_hex8(led.reg[PCA9532_PWM0]);
+    Monitor.print(" psc1=");
+    print_hex8(led.reg[PCA9532_PSC1]);
+    Monitor.print(" pwm1=");
+    print_hex8(led.reg[PCA9532_PWM1]);
+    Monitor.print(" ms=");
+    Monitor.println(millis());
+}
+
+/**
+ * @brief Print 0x22 port 1, which carries the EDIT and RUN lamps.
+ *
+ * Both the output latch and the configuration are printed, because a
+ * latch bit only reaches its lamp while the pin is configured as an
+ * output.
+ */
+static void print_lamps22(void) {
+    Monitor.print("LED22 out=");
+    print_hex8(btn[DEV_BTN_B].output[LAMP22_PORT]);
+    Monitor.print(" cfg=");
+    print_hex8(btn[DEV_BTN_B].config[LAMP22_PORT]);
+    Monitor.print(" ms=");
+    Monitor.println(millis());
+}
+
+/**
+ * @brief Move up to DRAIN_MAX_LINES events from the log ring onto the
+ *        Monitor link.
+ */
+static void drain_log(void) {
+    static const char *const KIND_NAMES[] = {
+        "TX ", "RX ", "CMD ", "WREQ ", "RREQ ", "STOP ", "ERR ",
+    };
+    uint8_t lines = 0;
+
+    while (log_tail != log_head && lines < DRAIN_MAX_LINES) {
+        uint16_t i = log_tail;
+        uint8_t kind = log_ring[i].kind;
+
+        lines++;
+        Monitor.print(KIND_NAMES[kind]);
+        print_hex8(log_ring[i].addr);
+        /* Only the byte-carrying events have a register and data. */
+        if (kind == EV_READ || kind == EV_WRITE || kind == EV_CMD) {
+            Monitor.print(" reg=");
+            print_hex8(log_ring[i].reg);
+            Monitor.print(" data=");
+            print_hex8(log_ring[i].data);
+        } else if (kind == EV_ERR) {
+            Monitor.print(" code=");
+            Monitor.print(log_ring[i].data);
+        }
+        Monitor.print(" ms=");
+        Monitor.println(log_ring[i].ms);
+
+        log_tail = (uint16_t)((i + 1) & LOG_RING_MASK);
+    }
+}
+
+/**
+ * @brief Print the traffic summary when any counter has moved.
+ *
+ * The period and the order of the mainboard's polling are the stage 2
+ * data this project still needs, so the counters are reported even
+ * when the log itself is quiet.
+ */
+static void report_poll(void) {
+    uint32_t now = millis();
+    uint8_t i = 0;
+    bool changed = false;
+
+    if ((int32_t)(now - poll_report_at) < 0) {
+        return;
+    }
+    poll_report_at = now + POLL_REPORT_MS;
+
+    for (i = 0; i < DEV_COUNT; i++) {
+        if (rx_count[i] != rx_reported[i]
+            || tx_count[i] != tx_reported[i]) {
+            changed = true;
+        }
+    }
+    if (!changed) {
+        return;
+    }
+
+    Monitor.print("POLL ms=");
+    Monitor.print(now);
+    for (i = 0; i < DEV_COUNT; i++) {
+        Monitor.print(i == DEV_BTN_A   ? " rx21="
+                      : i == DEV_BTN_B ? " rx22="
+                                       : " rx60=");
+        Monitor.print(rx_count[i] - rx_reported[i]);
+        Monitor.print(i == DEV_BTN_A   ? " tx21="
+                      : i == DEV_BTN_B ? " tx22="
+                                       : " tx60=");
+        Monitor.print(tx_count[i] - tx_reported[i]);
+        rx_reported[i] = rx_count[i];
+        tx_reported[i] = tx_count[i];
+    }
+    Monitor.print(" drop=");
+    Monitor.println(log_dropped);
+}
+
+/**
+ * @brief Hold one key down.
+ * @param key Entry from the KEYS table.
+ * @param hold_ms How long to keep it down.
+ */
+static void key_down(const key_entry_t *key, uint32_t hold_ms) {
+    uint32_t down_ms = 0;
+
+    press_dev = key->dev;
+    press_port = key->port;
+    press_bit = key->bit;
+    press_name = key->name;
+    release_due = false;
+
+    btn[key->dev].keys[key->port] =
+        (uint8_t)(btn[key->dev].keys[key->port] & ~(1u << key->bit));
+    btn[key->dev].int_pending = true;
+    down_ms = millis();
+    k_timer_start(&release_timer, K_MSEC(hold_ms), K_NO_WAIT);
+    int_apply();
+
+    Monitor.print("KEY ");
+    Monitor.print(key->name);
+    Monitor.print(" down ms=");
+    Monitor.println(down_ms);
+}
+
+/**
+ * @brief Restore the held key's bit, once.
+ *
+ * Runs from the release timer's expiry, in interrupt context, or from
+ * the RELEASE command. Interrupts are locked so the I2C callbacks never
+ * see a half-written port.
+ */
+static void release_bits(void) {
+    unsigned int key = irq_lock();
+
+    if (press_dev != PRESS_NONE && !release_due) {
+        btn[press_dev].keys[press_port] =
+            (uint8_t)(btn[press_dev].keys[press_port] | (1u << press_bit));
+        btn[press_dev].int_pending = true;
+        release_ms = millis();
+        release_due = true;
+    }
+    irq_unlock(key);
+}
+
+/**
+ * @brief Kernel timer expiry, the hold time is up.
+ * @param timer The release timer.
+ */
+static void on_release_timer(struct k_timer *timer) {
+    ARG_UNUSED(timer);
+    release_bits();
+}
+
+/**
+ * @brief Release the held key now, ahead of its timer.
+ */
+static void key_up(void) {
+    k_timer_stop(&release_timer);
+    release_bits();
+}
+
+/**
+ * @brief Report a release that has already happened and free the slot.
+ *
+ * The bit was restored on time by release_bits(); this only drives INT
+ * and prints the line, so its own lateness costs nothing.
+ */
+static void report_release(void) {
+    if (!release_due) {
+        return;
+    }
+    int_apply();
+
+    Monitor.print("KEY ");
+    Monitor.print(press_name);
+    Monitor.print(" up ms=");
+    Monitor.println(release_ms);
+
+    press_name = "none";
+    release_due = false;
+    press_dev = PRESS_NONE;
+}
+
+/**
+ * @brief Look one key up by its host protocol name.
+ * @param name Name as typed, already uppercased.
+ * @return The entry, or NULL when no key goes by that name.
+ */
+static const key_entry_t *key_find(const char *name) {
+    uint8_t i = 0;
+
+    for (i = 0; i < KEY_COUNT; i++) {
+        if (strcmp(KEYS[i].name, name) == 0) {
+            return &KEYS[i];
+        }
+    }
+    return NULL;
+}
+
+/**
+ * @brief Address one register of a controller.
+ * @param bus Index into BUS_BASE.
+ * @param offset Register offset from RM0456.
+ * @return Pointer to the memory-mapped register.
+ */
+static volatile uint32_t *i2c_reg(uint8_t bus, uint32_t offset) {
+    return (volatile uint32_t *)(BUS_BASE[bus] + offset);
+}
+
+/**
+ * @brief Make sure a controller's SDADEL is TARGET_SDADEL.
+ *
+ * TIMINGR may only be written with the peripheral disabled. PE is
+ * dropped only while the bus is idle, with interrupts locked, so no
+ * transfer is cut. Disabling PE keeps the own addresses and the
+ * interrupt enables, so the Zephyr target setup survives.
+ *
+ * @param bus Index into BUS_BASE.
+ * @return What was found and done.
+ */
+static timing_result_t timing_enforce(uint8_t bus) {
+    volatile uint32_t *cr1 = i2c_reg(bus, I2C_REG_CR1);
+    volatile uint32_t *isr = i2c_reg(bus, I2C_REG_ISR);
+    volatile uint32_t *timingr = i2c_reg(bus, I2C_REG_TIMINGR);
+    uint32_t value = *timingr;
+    uint32_t sdadel_bits = TIMINGR_FIELD_MASK << TIMINGR_SDADEL_SHIFT;
+
+    if (((value >> TIMINGR_PRESC_SHIFT) & TIMINGR_FIELD_MASK)
+        != EXPECTED_PRESC) {
+        return TIMING_WRONG_PRESC;
+    }
+    if (((value >> TIMINGR_SDADEL_SHIFT) & TIMINGR_FIELD_MASK)
+        == TARGET_SDADEL) {
+        return TIMING_IN_PLACE;
+    }
+    value = (value & ~sdadel_bits)
+            | ((uint32_t)TARGET_SDADEL << TIMINGR_SDADEL_SHIFT);
+
+    for (uint32_t i = 0; i < IDLE_WAIT_TRIES; i++) {
+        unsigned int key = irq_lock();
+
+        if ((*isr & I2C_ISR_BUSY) == 0) {
+            *cr1 &= ~I2C_CR1_PE;
+            for (uint8_t j = 0; j < PE_OFF_READS; j++) {
+                (void)*cr1;
+            }
+            *timingr = value;
+            *cr1 |= I2C_CR1_PE;
+            irq_unlock(key);
+            timing_applied[bus]++;
+            return TIMING_APPLIED;
+        }
+        irq_unlock(key);
+    }
+    return TIMING_BUS_BUSY;
+}
+
+/**
+ * @brief Print one controller's TIMINGR and how often it was fixed.
+ * @param bus Index into BUS_BASE.
+ */
+static void print_timing(uint8_t bus) {
+    uint32_t value = *i2c_reg(bus, I2C_REG_TIMINGR);
+
+    Monitor.print("TIMING ");
+    Monitor.print(BUS_NAME[bus]);
+    Monitor.print(" timingr=0x");
+    for (int8_t shift = 28; shift >= 0; shift -= 4) {
+        Monitor.print((value >> shift) & 0x0F, HEX);
+    }
+    Monitor.print(" presc=");
+    Monitor.print((value >> TIMINGR_PRESC_SHIFT) & TIMINGR_FIELD_MASK);
+    Monitor.print(" sdadel=");
+    Monitor.print((value >> TIMINGR_SDADEL_SHIFT) & TIMINGR_FIELD_MASK);
+    Monitor.print(" applied=");
+    Monitor.println(timing_applied[bus]);
+}
+
+/**
+ * @brief Enforce SDADEL on both controllers and report what changed.
+ *
+ * Called once from setup() and then every TIMING_CHECK_MS. A wrong
+ * PRESC is reported once and left alone, because SDADEL 4 is only known
+ * to work at the PRESC it was measured with. Nothing is printed while
+ * hushed; the applied counter in STATE still records it.
+ *
+ * @param at_boot True for the first call, which always prints.
+ */
+static void timing_check(bool at_boot) {
+    for (uint8_t bus = 0; bus < BUS_COUNT; bus++) {
+        timing_result_t result = timing_enforce(bus);
+
+        if (result == TIMING_WRONG_PRESC) {
+            if (!timing_warned[bus] && !hushed) {
+                timing_warned[bus] = true;
+                uint32_t value = *i2c_reg(bus, I2C_REG_TIMINGR);
+                Monitor.print("WARN ");
+                Monitor.print(BUS_NAME[bus]);
+                Monitor.print(" presc=");
+                Monitor.print((value >> TIMINGR_PRESC_SHIFT)
+                              & TIMINGR_FIELD_MASK);
+                Monitor.println(" not the measured 4, SDADEL left alone");
+            }
+            continue;
+        }
+        if (at_boot || (result == TIMING_APPLIED && !hushed)) {
+            print_timing(bus);
+        }
+    }
+}
+
+/**
+ * @brief Print the emulated state in one line.
+ */
+static void print_state(void) {
+    Monitor.print("STATE a0=");
+    print_hex8(btn[DEV_BTN_A].keys[0]);
+    Monitor.print(" a1=");
+    print_hex8(btn[DEV_BTN_A].keys[1]);
+    Monitor.print(" b0=");
+    print_hex8(btn[DEV_BTN_B].keys[0]);
+    Monitor.print(" b1=");
+    print_hex8(btn[DEV_BTN_B].keys[1]);
+    Monitor.print(" cfgA0=");
+    print_hex8(btn[DEV_BTN_A].config[0]);
+    Monitor.print(" cfgA1=");
+    print_hex8(btn[DEV_BTN_A].config[1]);
+    Monitor.print(" int=");
+    Monitor.print(btn[DEV_BTN_A].int_pending
+                      || btn[DEV_BTN_B].int_pending
+                  ? 0
+                  : 1);
+    Monitor.print(" press=");
+    Monitor.println(press_name);
+    print_leds();
+    print_lamps22();
+    print_timing(0);
+    print_timing(1);
+}
+
+/**
+ * @brief Uppercase a token in place so commands are case insensitive.
+ * @param text Null terminated token.
+ */
+static void to_upper(char *text) {
+    while (*text != '\0') {
+        if (*text >= 'a' && *text <= 'z') {
+            *text = (char)(*text - 'a' + 'A');
+        }
+        text++;
+    }
+}
+
+/**
+ * @brief Set a flag from the ON or OFF that follows a command verb.
+ * @param flag Flag to set.
+ * @return true when the argument was ON or OFF.
+ */
+static bool parse_switch(volatile bool *flag) {
+    char *arg = strtok(NULL, " ");
+
+    if (arg == NULL) {
+        return false;
+    }
+    to_upper(arg);
+    if (strcmp(arg, "ON") == 0) {
+        *flag = true;
+        return true;
+    }
+    if (strcmp(arg, "OFF") == 0) {
+        *flag = false;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Parse and run one host command.
+ *
+ * Every key of the panel can be pressed. The emulator is a keypad, and
+ * a keypad that silently drops half its keys is not one; the operator
+ * asked for the whole panel and the machine's own interlocks, the lid
+ * and the mains switch are what stand between a key press and harm,
+ * exactly as they did when the real keypad was plugged in.
+ *
+ * @param line Null terminated command line, modified in place.
+ * @return true when the command was accepted.
+ */
+static bool handle_line(char *line) {
+    char *verb = strtok(line, " ");
+
+    if (verb == NULL) {
+        return false;
+    }
+    to_upper(verb);
+
+    if (strcmp(verb, "STATE") == 0) {
+        print_state();
+        return true;
+    }
+    if (strcmp(verb, "RELEASE") == 0) {
+        key_up();
+        return true;
+    }
+    if (strcmp(verb, "HELP") == 0) {
+        Monitor.println("HELP PRESS <key> [ms] / RELEASE / STATE "
+                        "/ KEYS / LOG ON|OFF / TRACE ON|OFF / HUSH <s>");
+        return true;
+    }
+    if (strcmp(verb, "LOG") == 0) {
+        return parse_switch(&log_all_reads);
+    }
+    if (strcmp(verb, "TRACE") == 0) {
+        return parse_switch(&trace_raw);
+    }
+    if (strcmp(verb, "HUSH") == 0) {
+        char *secs = strtok(NULL, " ");
+        uint32_t hush_s = 0;
+
+        /* A held key would be released, and reported, mid-window. */
+        if (secs == NULL || press_dev != PRESS_NONE) {
+            return false;
+        }
+        hush_s = (uint32_t)strtoul(secs, NULL, DECIMAL_BASE);
+        if (hush_s == 0 || hush_s > HUSH_MAX_S) {
+            return false;
+        }
+        hush_until_ms = millis() + hush_s * MS_PER_S;
+        hushed = true;
+        return true;
+    }
+    if (strcmp(verb, "PRESS") == 0) {
+        char *name = strtok(NULL, " ");
+        char *hold = NULL;
+        const key_entry_t *key = NULL;
+        uint32_t hold_ms = PRESS_HOLD_DEFAULT_MS;
+
+        if (name == NULL) {
+            return false;
+        }
+        to_upper(name);
+
+        if (press_dev != PRESS_NONE) {
+            Monitor.println("BUSY");
+            return false;
+        }
+
+        hold = strtok(NULL, " ");
+        if (hold != NULL) {
+            hold_ms = (uint32_t)strtoul(hold, NULL, DECIMAL_BASE);
+            if (hold_ms < PRESS_HOLD_MIN_MS
+                || hold_ms > PRESS_HOLD_MAX_MS) {
+                return false;
+            }
+        }
+
+        key = key_find(name);
+        if (key == NULL) {
+            return false;
+        }
+        key_down(key, hold_ms);
+        return true;
+    }
+    if (strcmp(verb, "KEYS") == 0) {
+        uint8_t i = 0;
+
+        Monitor.print("KEYS");
+        for (i = 0; i < KEY_COUNT; i++) {
+            Monitor.print(' ');
+            Monitor.print(KEYS[i].name);
+        }
+        Monitor.println();
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Collect Monitor input into lines and run the complete ones.
+ */
+static void service_host(void) {
+    while (Monitor.available() > 0) {
+        char c = (char)Monitor.read();
+
+        if (c == '\r') {
+            continue;
+        }
+        if (c == '\n') {
+            char echo[LINE_BUF_SIZE];
+
+            line_buf[line_len] = '\0';
+            strncpy(echo, line_buf, sizeof(echo) - 1);
+            echo[sizeof(echo) - 1] = '\0';
+            line_len = 0;
+
+            if (echo[0] == '\0') {
+                continue;
+            }
+            if (handle_line(line_buf)) {
+                Monitor.println("OK");
+            } else {
+                Monitor.print("ERR raw=[");
+                Monitor.print(echo);
+                Monitor.println(']');
+            }
+            continue;
+        }
+        if (line_len < (LINE_BUF_SIZE - 1)) {
+            line_buf[line_len++] = c;
+        }
+    }
+}
+
+/**
+ * @brief Load the power-on reset values into both register files.
+ */
+static void reset_state(void) {
+    uint8_t i = 0;
+    uint8_t p = 0;
+
+    for (i = 0; i < 2; i++) {
+        for (p = 0; p < PCA9555_PORT_COUNT; p++) {
+            btn[i].keys[p] = KEYS_RELEASED;
+            btn[i].output[p] = PCA9555_POR_OUTPUT;
+            btn[i].polarity[p] = PCA9555_POR_POLARITY;
+            btn[i].config[p] = PCA9555_POR_CONFIG;
+        }
+        btn[i].pointer = PCA9555_INPUT_0;
+        btn[i].expect_pointer = true;
+        btn[i].int_pending = false;
+    }
+
+    for (i = 0; i < PCA9532_REG_COUNT; i++) {
+        led.reg[i] = PCA9532_POR_LS;
+    }
+    led.reg[PCA9532_PSC0] = PCA9532_POR_PSC;
+    led.reg[PCA9532_PWM0] = PCA9532_POR_PWM;
+    led.reg[PCA9532_PSC1] = PCA9532_POR_PSC;
+    led.reg[PCA9532_PWM1] = PCA9532_POR_PWM;
+    led.pointer = PCA9532_INPUT_0;
+    led.auto_increment = false;
+    led.expect_pointer = true;
+    led.lamps_dirty = false;
+    lamps22_dirty = false;
+}
+
+void setup() {
+    Serial.begin(SERIAL_BAUD);
+    Bridge.begin();
+
+    Monitor.begin(SERIAL_BAUD);
+    while (!Monitor) {
+        delay(MONITOR_RETRY_MS);
+    }
+
+    Monitor.println("BOOT pca9555_emu_gui_mk2");
+
+    reset_state();
+    int_apply();
+    k_timer_init(&release_timer, on_release_timer, NULL);
+
+    /* Wire.begin() with no address only re-applies the pinctrl state;
+     * it does not claim the bus as a master. The mainboard stays the
+     * only master here. */
+    Wire.begin();
+    Wire2.begin();
+
+    register_target(DEV_BTN_A, btn_bus, ADDR_BTN_A);
+    register_target(DEV_BTN_B, btn_bus, ADDR_BTN_B);
+    register_target(DEV_LED, led_bus, ADDR_LED);
+
+    /* After every registration: each one recomputes TIMINGR. */
+    timing_check(true);
+    timing_check_at = millis() + TIMING_CHECK_MS;
+
+    poll_report_at = millis() + POLL_REPORT_MS;
+
+    Monitor.println("READY");
+}
+
+void loop() {
+    report_release();
+
+    if ((int32_t)(millis() - timing_check_at) >= 0) {
+        timing_check_at = millis() + TIMING_CHECK_MS;
+        timing_check(false);
+    }
+
+    if (hushed) {
+        if ((int32_t)(millis() - hush_until_ms) < 0) {
+            return;
+        }
+        hushed = false;
+        Monitor.print("HUSH end ms=");
+        Monitor.println(millis());
+    }
+
+    if (led.lamps_dirty) {
+        led.lamps_dirty = false;
+        print_leds();
+    }
+    if (lamps22_dirty) {
+        lamps22_dirty = false;
+        print_lamps22();
+    }
+
+    drain_log();
+    report_poll();
+    service_host();
+}

@@ -1,0 +1,93 @@
+20:45:26 POLL ms=180166 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:27 POLL ms=181166 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:28 POLL ms=182171 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:29 POLL ms=183171 rx21=0 tx21=78 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:30 POLL ms=184174 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:31 POLL ms=185174 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:32 POLL ms=186180 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:33 POLL ms=187186 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+> STATE
+20:45:34 POLL ms=188190 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:34 STATE a0=0xFF a1=0xFF b0=0xFF b1=0xFF cfgA0=0xFF cfgA1=0xFF int=1 press=none
+20:45:34 LEDS .*......*.....*. psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=188637
+20:45:34 LED22 out=0xFC cfg=0x00 ms=188696
+20:45:34 TIMING i2c2 timingr=0x40F41228 presc=4 sdadel=4 applied=1
+20:45:34 TIMING i2c3 timingr=0x40F41228 presc=4 sdadel=4 applied=1
+20:45:34 OK
+20:45:35 POLL ms=189194 rx21=0 tx21=80 rx22=0 tx22=38 rx60=0 tx60=0 drop=0
+> PRESS DOWN 120
+20:45:36 POLL ms=190197 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:36 KEY DOWN down ms=190381
+20:45:36 OK
+20:45:36 TX 0x21 reg=0x01 data=0xFE ms=190392
+20:45:36 KEY DOWN up ms=190501
+20:45:36 TX 0x21 reg=0x01 data=0xFF ms=190506
+20:45:36 LEDS .*......*.....** psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=190926
+20:45:36 LED22 out=0xFC cfg=0x00 ms=190984
+20:45:36 RX 0x60 reg=0x09 data=0x50 ms=190745
+20:45:36 RX 0x60 reg=0x08 data=0x01 ms=190748
+20:45:37 RX 0x60 reg=0x07 data=0x00 ms=190750
+20:45:37 RX 0x60 reg=0x06 data=0x04 ms=190752
+20:45:37 RX 0x22 reg=0x03 data=0xFC ms=190754
+20:45:37 POLL ms=191387 rx21=0 tx21=108 rx22=1 tx22=52 rx60=4 tx60=0 drop=0
+20:45:37 LEDS .*......*.....** psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=191666
+> STATE
+20:45:38 STATE a0=0xFF a1=0xFF b0=0xFF b1=0xFF cfgA0=0xFF cfgA1=0xFF int=1 press=none
+20:45:38 LEDS .*......*.....** psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=192587
+20:45:38 LED22 out=0xFC cfg=0x00 ms=192644
+20:45:38 TIMING i2c2 timingr=0x40F41228 presc=4 sdadel=4 applied=1
+20:45:38 TIMING i2c3 timingr=0x40F41228 presc=4 sdadel=4 applied=1
+20:45:38 OK
+20:45:38 POLL ms=192882 rx21=0 tx21=118 rx22=0 tx22=60 rx60=0 tx60=0 drop=0
+20:45:39 POLL ms=193886 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+> PRESS UP 120
+20:45:40 KEY UP down ms=194294
+20:45:40 OK
+20:45:40 TX 0x21 reg=0x01 data=0x7F ms=194309
+20:45:40 TX 0x21 reg=0x01 data=0xFF ms=194417
+20:45:40 KEY UP up ms=194414
+20:45:40 LEDS .*......*.....*. psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=194841
+20:45:40 LED22 out=0xFC cfg=0x00 ms=194900
+20:45:40 RX 0x60 reg=0x09 data=0x10 ms=194659
+20:45:40 RX 0x60 reg=0x08 data=0x01 ms=194663
+20:45:40 RX 0x60 reg=0x07 data=0x00 ms=194665
+20:45:41 RX 0x60 reg=0x06 data=0x04 ms=194667
+20:45:41 RX 0x22 reg=0x03 data=0xFC ms=194670
+20:45:41 POLL ms=195302 rx21=0 tx21=124 rx22=1 tx22=62 rx60=4 tx60=0 drop=0
+20:45:41 LEDS .*......*.....*. psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=195580
+> STATE
+20:45:42 STATE a0=0xFF a1=0xFF b0=0xFF b1=0xFF cfgA0=0xFF cfgA1=0xFF int=1 press=none
+20:45:42 LEDS .*......*.....*. psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=196570
+20:45:42 LED22 out=0xFC cfg=0x00 ms=196628
+20:45:42 TIMING i2c2 timingr=0x40F41228 presc=4 sdadel=4 applied=1
+20:45:42 TIMING i2c3 timingr=0x40F41228 presc=4 sdadel=4 applied=1
+20:45:42 OK
+20:45:42 POLL ms=196866 rx21=0 tx21=124 rx22=0 tx22=62 rx60=0 tx60=0 drop=0
+20:45:43 POLL ms=197868 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+> PRESS PGDN 120
+20:45:44 KEY PGDN down ms=198302
+20:45:44 OK
+20:45:44 TX 0x21 reg=0x00 data=0xFD ms=198325
+20:45:44 TX 0x21 reg=0x00 data=0xFF ms=198425
+20:45:44 KEY PGDN up ms=198422
+20:45:44 LEDS **......*.....** psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=198903
+20:45:44 LED22 out=0xFC cfg=0x00 ms=198962
+20:45:44 RX 0x60 reg=0x09 data=0x50 ms=198725
+20:45:44 RX 0x60 reg=0x08 data=0x01 ms=198727
+20:45:44 RX 0x60 reg=0x07 data=0x00 ms=198729
+20:45:45 RX 0x60 reg=0x06 data=0x05 ms=198731
+20:45:45 RX 0x22 reg=0x03 data=0xFC ms=198733
+20:45:45 POLL ms=199364 rx21=0 tx21=128 rx22=1 tx22=64 rx60=4 tx60=0 drop=0
+20:45:45 LEDS **......*.....** psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=199643
+> STATE
+20:45:46 STATE a0=0xFF a1=0xFF b0=0xFF b1=0xFF cfgA0=0xFF cfgA1=0xFF int=1 press=none
+20:45:46 LEDS **......*.....** psc0=0xFF pwm0=0x00 psc1=0xFF pwm1=0x80 ms=200563
+20:45:46 LED22 out=0xFC cfg=0x00 ms=200624
+20:45:46 TIMING i2c2 timingr=0x40F41228 presc=4 sdadel=4 applied=1
+20:45:46 TIMING i2c3 timingr=0x40F41228 presc=4 sdadel=4 applied=1
+20:45:46 OK
+20:45:46 POLL ms=200866 rx21=0 tx21=120 rx22=0 tx22=60 rx60=0 tx60=0 drop=0
+20:45:47 POLL ms=201870 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:48 POLL ms=202871 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:49 POLL ms=203873 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0
+20:45:50 POLL ms=204874 rx21=0 tx21=80 rx22=0 tx22=40 rx60=0 tx60=0 drop=0

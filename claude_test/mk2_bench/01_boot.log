@@ -1,0 +1,7 @@
+> STATE
+20:42:43 STATE a0=0xFF a1=0xFF b0=0xFF b1=0xFF cfgA0=0xFF cfgA1=0xFF int=1 press=none
+20:42:43 LEDS ................ psc0=0xFF pwm0=0x80 psc1=0xFF pwm1=0x80 ms=18041
+20:42:43 LED22 out=0xFF cfg=0xFF ms=18094
+20:42:43 TIMING i2c2 timingr=0x40F41228 presc=4 sdadel=4 applied=1
+20:42:43 TIMING i2c3 timingr=0x40F41228 presc=4 sdadel=4 applied=1
+20:42:43 OK
