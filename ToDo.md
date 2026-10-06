@@ -489,6 +489,8 @@ Tasks:
 
 ## 13. Serve the whole panel and move the GUI beside its sketch (2026-10-06)
 
+GitHub issue #14.
+
 Three requests from the operator. Settle whether the lamps really mean
 what we think; make every key work, with the lit lamps deciding what may
 be pressed; and lay the files out so a sketch and the panel that drives
